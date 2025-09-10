@@ -2,12 +2,17 @@ import { useState } from "react";
 import { NotesInput } from "@/components/NotesInput";
 import { AIProcessor } from "@/components/AIProcessor";
 import { StudyResults } from "@/components/StudyResults";
+import { AuthModal } from "@/components/AuthModal";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
 import mascotImage from "@/assets/retro-wizard-mascot.jpg";
-import { Sparkles, Zap, Brain } from "lucide-react";
+import { Sparkles, Zap, Brain, User, LogOut } from "lucide-react";
 
 const Index = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { user, signOut, loading } = useAuth();
 
   const handleProcessNotes = (notes: string) => {
     console.log("Processing notes:", notes);
@@ -29,7 +34,37 @@ const Index = () => {
     <div className="min-h-screen bg-gradient-terminal p-4 scanlines">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
-        <header className="text-center py-8">
+        <header className="text-center py-8 relative">
+          {/* Auth Section */}
+          <div className="absolute top-0 right-0">
+            {user ? (
+              <div className="flex items-center gap-2">
+                <span className="font-retro text-sm text-muted-foreground">
+                  {user.email}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={signOut}
+                  className="font-retro"
+                >
+                  <LogOut className="w-4 h-4 mr-1" />
+                  LOGOUT
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="neon"
+                size="sm"
+                onClick={() => setShowAuthModal(true)}
+                className="font-retro"
+                disabled={loading}
+              >
+                <User className="w-4 h-4 mr-1" />
+                LOGIN
+              </Button>
+            )}
+          </div>
           <div className="flex items-center justify-center gap-6 mb-6">
             <div className="relative">
               <img 
@@ -110,6 +145,12 @@ const Index = () => {
             Ready to make studying retroactively awesome
           </div>
         </footer>
+
+        {/* Auth Modal */}
+        <AuthModal 
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+        />
       </div>
     </div>
   );
