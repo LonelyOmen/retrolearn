@@ -2,14 +2,16 @@ import { useState } from "react";
 import { NotesInput } from "@/components/NotesInput";
 import { AIProcessor } from "@/components/AIProcessor";
 import { StudyResults } from "@/components/StudyResults";
+import { NotesList } from "@/components/NotesList";
 import { AuthModal } from "@/components/AuthModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotes } from "@/hooks/useNotes";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import mascotImage from "@/assets/retro-wizard-mascot.jpg";
-import { Sparkles, Zap, Brain, User, LogOut } from "lucide-react";
+import { Sparkles, Zap, Brain, User, LogOut, FileText, Wand2 } from "lucide-react";
 
 const Index = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -17,6 +19,7 @@ const Index = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [currentNote, setCurrentNote] = useState<any>(null);
   const [enhanceWithInternet, setEnhanceWithInternet] = useState(true);
+  const [activeTab, setActiveTab] = useState("transform");
   const { user, signOut, loading } = useAuth();
   const { createNote } = useNotes();
   const { toast } = useToast();
@@ -93,6 +96,11 @@ const Index = () => {
     setIsProcessing(false);
     setShowResults(false);
     setCurrentNote(null);
+  };
+
+  const handleViewNote = (note: any) => {
+    setCurrentNote(note);
+    setActiveTab("transform");
   };
 
   return (
@@ -199,27 +207,44 @@ const Index = () => {
               </Button>
             </div>
           ) : (
-            <>
-              {!isProcessing && !showResults && !currentNote && (
-                <NotesInput 
-                  onProcessNotes={handleProcessNotes}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 bg-card border-2 border-secondary font-retro">
+                <TabsTrigger value="transform" className="font-retro">
+                  <Wand2 className="w-4 h-4 mr-2" />
+                  TRANSFORM NOTES
+                </TabsTrigger>
+                <TabsTrigger value="notes" className="font-retro">
+                  <FileText className="w-4 h-4 mr-2" />
+                  MY NOTES
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="transform" className="mt-6 space-y-6">
+                {!isProcessing && !showResults && !currentNote && (
+                  <NotesInput 
+                    onProcessNotes={handleProcessNotes}
+                    isProcessing={isProcessing}
+                    enhanceWithInternet={enhanceWithInternet}
+                    onToggleInternet={setEnhanceWithInternet}
+                  />
+                )}
+
+                <AIProcessor 
                   isProcessing={isProcessing}
-                  enhanceWithInternet={enhanceWithInternet}
-                  onToggleInternet={setEnhanceWithInternet}
+                  onComplete={handleProcessingComplete}
                 />
-              )}
 
-              <AIProcessor 
-                isProcessing={isProcessing}
-                onComplete={handleProcessingComplete}
-              />
+                <StudyResults 
+                  isVisible={!!currentNote && !isProcessing}
+                  onReset={handleReset}
+                  noteData={currentNote}
+                />
+              </TabsContent>
 
-              <StudyResults 
-                isVisible={!!currentNote && !isProcessing}
-                onReset={handleReset}
-                noteData={currentNote}
-              />
-            </>
+              <TabsContent value="notes" className="mt-6">
+                <NotesList onViewNote={handleViewNote} />
+              </TabsContent>
+            </Tabs>
           )}
         </div>
 
