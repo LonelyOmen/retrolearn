@@ -156,7 +156,47 @@ ${content}${additionalContext ? `\n\nAdditional Research Context:${additionalCon
     
     if (!studyResponse.ok) {
       console.error('Gemini API error:', studyData);
-      throw new Error(`Gemini API error: ${studyData.error?.message || 'Unknown error'}`);
+      const status = studyResponse.status;
+      const errMsg: string = studyData.error?.message || 'Unknown error';
+
+      // Attempt fallback to a cheaper model if quota or permission issues
+      const shouldFallback = status === 429 || /quota|insufficient|exceed/i.test(errMsg);
+      if (shouldFallback) {
+        console.log('Attempting fallback to gemini-1.5-flash-latest');
+        const fallbackRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}` , {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: `You are an expert educator creating comprehensive study materials. Create:\n1. A clear, structured summary\n2. Key points (5-8 bullet points)\n3. Flashcards (8-12 cards with front/back)\n4. Q&A pairs (6-10 questions with detailed answers)\n\nFormat your response as JSON with this structure:\n{\n  "summary": "detailed summary text",\n  "keyPoints": ["point 1", "point 2", ...],\n  "flashcards": [{"front": "question", "back": "answer"}, ...],\n  "qa": [{"question": "question text", "answer": "detailed answer"}, ...]\n}\n\nMake the content educational, engaging, and comprehensive.\n\nOriginal Notes:\n${content}${additionalContext ? `\n\nAdditional Research Context:${additionalContext}` : ''}`
+              }]
+            }],
+            generationConfig: { temperature: 0.7, maxOutputTokens: 3500 }
+          })
+        });
+        const fbData = await fallbackRes.json();
+        console.log('Fallback status:', fallbackRes.status);
+        if (fallbackRes.ok && fbData.candidates && fbData.candidates[0]?.content?.parts?.[0]?.text) {
+          // Overwrite studyData to reuse parsing logic below
+          (studyData as any).candidates = fbData.candidates;
+        } else {
+          // Update note status and return error with accurate status code
+          try {
+            const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+            await supabase.from('notes').update({ processing_status: 'error' }).eq('id', noteId);
+          } catch (_) {}
+          const fbMsg = fbData.error?.message || errMsg;
+          return new Response(JSON.stringify({ success: false, error: `Gemini quota/limit error: ${fbMsg}`, code: 'GEMINI_QUOTA' }), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+      } else {
+        // Non-fallback-able error: return with provider status
+        try {
+          const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+          await supabase.from('notes').update({ processing_status: 'error' }).eq('id', noteId);
+        } catch (_) {}
+        return new Response(JSON.stringify({ success: false, error: `Gemini API error: ${errMsg}` }), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
     }
     
     if (!studyData.candidates || !studyData.candidates[0] || !studyData.candidates[0].content) {
