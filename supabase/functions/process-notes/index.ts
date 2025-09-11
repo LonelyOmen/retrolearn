@@ -24,8 +24,10 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let requestBody: any;
   try {
-    const { noteId, content, enhanceWithInternet = false } = await req.json();
+    requestBody = await req.json();
+    const { noteId, content, enhanceWithInternet = false } = requestBody;
     
     console.log('Processing note:', { noteId, contentLength: content?.length, enhanceWithInternet });
 
@@ -75,6 +77,13 @@ serve(async (req) => {
         });
 
         const topicsData = await topicsResponse.json();
+        console.log('Topics response:', topicsData);
+        
+        if (!topicsData.choices || !topicsData.choices[0] || !topicsData.choices[0].message) {
+          console.error('Invalid topics response format:', topicsData);
+          throw new Error('Failed to extract topics from OpenAI response');
+        }
+        
         const topics = topicsData.choices[0].message.content.split('\n').filter((t: string) => t.trim());
 
         // Research each topic
@@ -149,9 +158,17 @@ Make the content educational, engaging, and comprehensive.`
     });
 
     const studyData = await studyResponse.json();
+    console.log('Study response status:', studyResponse.status);
+    console.log('Study response data:', studyData);
+    
+    if (!studyResponse.ok) {
+      console.error('OpenAI API error:', studyData);
+      throw new Error(`OpenAI API error: ${studyData.error?.message || 'Unknown error'}`);
+    }
     
     if (!studyData.choices || !studyData.choices[0]) {
-      throw new Error('Failed to generate study materials');
+      console.error('Invalid study response format:', studyData);
+      throw new Error('Failed to generate study materials - invalid response format');
     }
 
     const studyMaterials = JSON.parse(studyData.choices[0].message.content);
@@ -197,13 +214,12 @@ Make the content educational, engaging, and comprehensive.`
     
     // Try to update note status to error if we have the noteId
     try {
-      const { noteId } = await req.json();
-      if (noteId && supabaseUrl && supabaseServiceKey) {
+      if (requestBody?.noteId && supabaseUrl && supabaseServiceKey) {
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
         await supabase
           .from('notes')
           .update({ processing_status: 'error' })
-          .eq('id', noteId);
+          .eq('id', requestBody.noteId);
       }
     } catch (updateError) {
       console.error('Failed to update note status to error:', updateError);
