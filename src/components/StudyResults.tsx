@@ -8,6 +8,7 @@ import { FileText, Zap, HelpCircle, Download, RefreshCw } from "lucide-react";
 interface StudyResultsProps {
   isVisible: boolean;
   onReset: () => void;
+  noteData?: any;
 }
 
 const mockSummary = `# PROJECT ALPHA - EXECUTIVE SUMMARY
@@ -69,20 +70,26 @@ const mockQA = [
   }
 ];
 
-export const StudyResults = ({ isVisible, onReset }: StudyResultsProps) => {
+export const StudyResults = ({ isVisible, onReset, noteData }: StudyResultsProps) => {
   const [currentFlashcard, setCurrentFlashcard] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
+
+  // Use real data or fallback to mock data
+  const summary = noteData?.summary || mockSummary;
+  const flashcards = noteData?.generated_flashcards || mockFlashcards;
+  const qaData = noteData?.generated_qa || mockQA;
+  const keyPoints = noteData?.key_points || [];
 
   if (!isVisible) return null;
 
   const nextCard = () => {
     setIsFlipped(false);
-    setCurrentFlashcard((prev) => (prev + 1) % mockFlashcards.length);
+    setCurrentFlashcard((prev) => (prev + 1) % flashcards.length);
   };
 
   const prevCard = () => {
     setIsFlipped(false);
-    setCurrentFlashcard((prev) => (prev - 1 + mockFlashcards.length) % mockFlashcards.length);
+    setCurrentFlashcard((prev) => (prev - 1 + flashcards.length) % flashcards.length);
   };
 
   return (
@@ -125,58 +132,72 @@ export const StudyResults = ({ isVisible, onReset }: StudyResultsProps) => {
 
           <TabsContent value="summary" className="mt-6">
             <Card className="p-6 bg-muted border-2 border-secondary">
+              {keyPoints.length > 0 && (
+                <div className="mb-4 space-y-2">
+                  <h3 className="font-retro font-bold text-primary">KEY POINTS</h3>
+                  <ul className="space-y-1">
+                    {keyPoints.map((point, index) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <span className="text-accent font-bold">•</span>
+                        <span className="font-retro text-sm">{point}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <hr className="border-secondary my-4" />
+                </div>
+              )}
               <ScrollArea className="h-[400px] pr-4">
                 <pre className="font-retro text-sm text-foreground whitespace-pre-wrap">
-                  {mockSummary}
+                  {summary}
                 </pre>
               </ScrollArea>
             </Card>
           </TabsContent>
 
           <TabsContent value="flashcards" className="mt-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-retro text-muted-foreground">
-                  Card {currentFlashcard + 1} of {mockFlashcards.length}
-                </span>
-                <div className="flex gap-2">
-                  <Button variant="terminal" size="sm" onClick={prevCard}>
-                    PREV
-                  </Button>
-                  <Button variant="terminal" size="sm" onClick={nextCard}>
-                    NEXT
-                  </Button>
-                </div>
-              </div>
-              
-              <Card 
-                className="h-[300px] cursor-pointer bg-muted border-2 border-accent hover:shadow-pink transition-all duration-300"
-                onClick={() => setIsFlipped(!isFlipped)}
-              >
-                <div className="h-full flex items-center justify-center p-6">
-                  <div className="text-center">
-                    <div className="text-lg font-retro mb-4 glow-pink">
-                      {isFlipped ? "ANSWER" : "QUESTION"}
-                    </div>
-                    <p className="font-retro text-foreground">
-                      {isFlipped 
-                        ? mockFlashcards[currentFlashcard].back
-                        : mockFlashcards[currentFlashcard].front
-                      }
-                    </p>
-                    <div className="mt-6 text-xs text-muted-foreground font-retro">
-                      Click to {isFlipped ? "see question" : "reveal answer"}
-                    </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-retro text-muted-foreground">
+                    Card {currentFlashcard + 1} of {flashcards.length}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button variant="terminal" size="sm" onClick={prevCard}>
+                      PREV
+                    </Button>
+                    <Button variant="terminal" size="sm" onClick={nextCard}>
+                      NEXT
+                    </Button>
                   </div>
                 </div>
-              </Card>
-            </div>
+                
+                <Card 
+                  className="h-[300px] cursor-pointer bg-muted border-2 border-accent hover:shadow-pink transition-all duration-300"
+                  onClick={() => setIsFlipped(!isFlipped)}
+                >
+                  <div className="h-full flex items-center justify-center p-6">
+                    <div className="text-center">
+                      <div className="text-lg font-retro mb-4 glow-pink">
+                        {isFlipped ? "ANSWER" : "QUESTION"}
+                      </div>
+                      <p className="font-retro text-foreground">
+                        {isFlipped 
+                          ? flashcards[currentFlashcard].back
+                          : flashcards[currentFlashcard].front
+                        }
+                      </p>
+                      <div className="mt-6 text-xs text-muted-foreground font-retro">
+                        Click to {isFlipped ? "see question" : "reveal answer"}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
           </TabsContent>
 
           <TabsContent value="qa" className="mt-6">
             <ScrollArea className="h-[400px]">
               <div className="space-y-4">
-                {mockQA.map((item, index) => (
+                {qaData.map((item: any, index: number) => (
                   <Card key={index} className="p-4 bg-muted border border-secondary">
                     <div className="space-y-3">
                       <div className="font-retro font-bold text-primary">

@@ -4,7 +4,10 @@ import { AIProcessor } from "@/components/AIProcessor";
 import { StudyResults } from "@/components/StudyResults";
 import { AuthModal } from "@/components/AuthModal";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotes } from "@/hooks/useNotes";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import mascotImage from "@/assets/retro-wizard-mascot.jpg";
 import { Sparkles, Zap, Brain, User, LogOut } from "lucide-react";
 
@@ -12,12 +15,73 @@ const Index = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [currentNote, setCurrentNote] = useState<any>(null);
+  const [enhanceWithInternet, setEnhanceWithInternet] = useState(true);
   const { user, signOut, loading } = useAuth();
+  const { createNote } = useNotes();
+  const { toast } = useToast();
 
-  const handleProcessNotes = (notes: string) => {
-    console.log("Processing notes:", notes);
-    setIsProcessing(true);
-    setShowResults(false);
+  const handleProcessNotes = async (notes: string) => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to process notes",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      console.log("Processing notes:", notes);
+      setIsProcessing(true);
+      setShowResults(false);
+      setCurrentNote(null);
+
+      // First, create the note in the database
+      const newNote = await createNote({
+        title: notes.slice(0, 50) + (notes.length > 50 ? '...' : ''),
+        original_content: notes,
+        processing_status: 'pending'
+      });
+
+      if (!newNote) {
+        throw new Error('Failed to create note');
+      }
+
+      // Then call the edge function to process it
+      const { data, error } = await supabase.functions.invoke('process-notes', {
+        body: {
+          noteId: newNote.id,
+          content: notes,
+          enhanceWithInternet: enhanceWithInternet
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.success) {
+        setCurrentNote(data.note);
+        toast({
+          title: "Processing Complete!",
+          description: data.enhancedWithInternet 
+            ? "Your notes have been processed with internet research" 
+            : "Your notes have been successfully processed",
+        });
+      } else {
+        throw new Error(data.error || 'Processing failed');
+      }
+    } catch (error: any) {
+      console.error('Error processing notes:', error);
+      toast({
+        title: "Processing Failed",
+        description: error.message || "An error occurred while processing your notes",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleProcessingComplete = () => {
@@ -28,6 +92,7 @@ const Index = () => {
   const handleReset = () => {
     setIsProcessing(false);
     setShowResults(false);
+    setCurrentNote(null);
   };
 
   return (
@@ -135,10 +200,12 @@ const Index = () => {
             </div>
           ) : (
             <>
-              {!isProcessing && !showResults && (
+              {!isProcessing && !showResults && !currentNote && (
                 <NotesInput 
                   onProcessNotes={handleProcessNotes}
                   isProcessing={isProcessing}
+                  enhanceWithInternet={enhanceWithInternet}
+                  onToggleInternet={setEnhanceWithInternet}
                 />
               )}
 
@@ -148,8 +215,9 @@ const Index = () => {
               />
 
               <StudyResults 
-                isVisible={showResults}
+                isVisible={!!currentNote && !isProcessing}
                 onReset={handleReset}
+                noteData={currentNote}
               />
             </>
           )}

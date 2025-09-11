@@ -2,14 +2,23 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Sparkles, FileText, Mic, Image } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Sparkles, FileText, Mic, Image, Globe } from "lucide-react";
 
 interface NotesInputProps {
   onProcessNotes: (notes: string) => void;
   isProcessing: boolean;
+  enhanceWithInternet?: boolean;
+  onToggleInternet?: (enabled: boolean) => void;
 }
 
-export const NotesInput = ({ onProcessNotes, isProcessing }: NotesInputProps) => {
+export const NotesInput = ({ 
+  onProcessNotes, 
+  isProcessing, 
+  enhanceWithInternet = true, 
+  onToggleInternet 
+}: NotesInputProps) => {
   const [notes, setNotes] = useState("");
 
   const handleSubmit = () => {
@@ -71,6 +80,23 @@ export const NotesInput = ({ onProcessNotes, isProcessing }: NotesInputProps) =>
             </div>
           )}
         </div>
+
+        {/* Internet Enhancement Toggle */}
+        {onToggleInternet && (
+          <div className="flex items-center justify-between p-3 bg-muted/30 border border-primary/20 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-primary" />
+              <Label htmlFor="internet-toggle" className="font-retro text-sm">
+                Enhance with Internet Research
+              </Label>
+            </div>
+            <Switch
+              id="internet-toggle"
+              checked={enhanceWithInternet}
+              onCheckedChange={onToggleInternet}
+            />
+          </div>
+        )}
 
         <div className="flex gap-3">
           <Button 
