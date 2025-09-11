@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 const tavilyApiKey = Deno.env.get('TAVILY_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -52,39 +52,34 @@ serve(async (req) => {
       console.log('Enhancing with internet research...');
       
       try {
-        // Extract key topics for research
-        const topicsResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        // Extract key topics for research using Gemini
+        const topicsResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${openAIApiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages: [
-              {
-                role: 'system',
-                content: 'Extract 2-3 key research topics from the provided notes. Return only the topics, one per line.'
-              },
-              {
-                role: 'user',
-                content: content
-              }
-            ],
-            max_tokens: 150,
-            temperature: 0.3,
+            contents: [{
+              parts: [{
+                text: `Extract 2-3 key research topics from the provided notes. Return only the topics, one per line.\n\nNotes: ${content}`
+              }]
+            }],
+            generationConfig: {
+              temperature: 0.3,
+              maxOutputTokens: 150,
+            }
           }),
         });
 
         const topicsData = await topicsResponse.json();
         console.log('Topics response:', topicsData);
         
-        if (!topicsData.choices || !topicsData.choices[0] || !topicsData.choices[0].message) {
+        if (!topicsData.candidates || !topicsData.candidates[0] || !topicsData.candidates[0].content) {
           console.error('Invalid topics response format:', topicsData);
-          throw new Error('Failed to extract topics from OpenAI response');
+          throw new Error('Failed to extract topics from Gemini response');
         }
         
-        const topics = topicsData.choices[0].message.content.split('\n').filter((t: string) => t.trim());
+        const topics = topicsData.candidates[0].content.parts[0].text.split('\n').filter((t: string) => t.trim());
 
         // Research each topic
         for (const topic of topics.slice(0, 2)) { // Limit to 2 topics
@@ -117,21 +112,18 @@ serve(async (req) => {
       }
     }
 
-    // Step 2: Generate comprehensive study materials
+    // Step 2: Generate comprehensive study materials using Gemini
     console.log('Generating study materials...');
     
-    const studyResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    const studyResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-2025-08-07',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an expert educator creating comprehensive study materials. Create:
+        contents: [{
+          parts: [{
+            text: `You are an expert educator creating comprehensive study materials. Create:
 1. A clear, structured summary
 2. Key points (5-8 bullet points)
 3. Flashcards (8-12 cards with front/back)
@@ -145,15 +137,16 @@ Format your response as JSON with this structure:
   "qa": [{"question": "question text", "answer": "detailed answer"}, ...]
 }
 
-Make the content educational, engaging, and comprehensive.`
-          },
-          {
-            role: 'user',
-            content: `Original Notes:\n${content}${additionalContext ? `\n\nAdditional Research Context:${additionalContext}` : ''}`
-          }
-        ],
-        max_completion_tokens: 3000,
-        response_format: { type: "json_object" }
+Make the content educational, engaging, and comprehensive.
+
+Original Notes:
+${content}${additionalContext ? `\n\nAdditional Research Context:${additionalContext}` : ''}`
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 4000,
+        }
       }),
     });
 
@@ -162,16 +155,27 @@ Make the content educational, engaging, and comprehensive.`
     console.log('Study response data:', studyData);
     
     if (!studyResponse.ok) {
-      console.error('OpenAI API error:', studyData);
-      throw new Error(`OpenAI API error: ${studyData.error?.message || 'Unknown error'}`);
+      console.error('Gemini API error:', studyData);
+      throw new Error(`Gemini API error: ${studyData.error?.message || 'Unknown error'}`);
     }
     
-    if (!studyData.choices || !studyData.choices[0]) {
+    if (!studyData.candidates || !studyData.candidates[0] || !studyData.candidates[0].content) {
       console.error('Invalid study response format:', studyData);
       throw new Error('Failed to generate study materials - invalid response format');
     }
 
-    const studyMaterials = JSON.parse(studyData.choices[0].message.content);
+    let studyMaterials;
+    try {
+      const responseText = studyData.candidates[0].content.parts[0].text;
+      // Clean up response text to extract JSON
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      const jsonText = jsonMatch ? jsonMatch[0] : responseText;
+      studyMaterials = JSON.parse(jsonText);
+    } catch (parseError) {
+      console.error('Failed to parse JSON response:', parseError);
+      console.log('Raw response text:', studyData.candidates[0].content.parts[0].text);
+      throw new Error('Failed to parse study materials from response');
+    }
     
     console.log('Generated study materials:', {
       summaryLength: studyMaterials.summary?.length,
