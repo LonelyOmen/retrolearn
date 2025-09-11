@@ -14,7 +14,108 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      notes: {
+        Row: {
+          created_at: string
+          generated_flashcards: Json | null
+          generated_qa: Json | null
+          id: string
+          key_points: string[] | null
+          original_content: string
+          processing_status: string
+          summary: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          generated_flashcards?: Json | null
+          generated_qa?: Json | null
+          id?: string
+          key_points?: string[] | null
+          original_content: string
+          processing_status?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          generated_flashcards?: Json | null
+          generated_qa?: Json | null
+          id?: string
+          key_points?: string[] | null
+          original_content?: string
+          processing_status?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      study_sessions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          note_id: string
+          score: number
+          session_type: string
+          total_items: number
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          note_id: string
+          score?: number
+          session_type: string
+          total_items?: number
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          note_id?: string
+          score?: number
+          session_type?: string
+          total_items?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

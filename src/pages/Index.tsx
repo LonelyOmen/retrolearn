@@ -114,22 +114,45 @@ const Index = () => {
 
         {/* Main Interface */}
         <div className="space-y-6">
-          {!isProcessing && !showResults && (
-            <NotesInput 
-              onProcessNotes={handleProcessNotes}
-              isProcessing={isProcessing}
-            />
+          {!user ? (
+            <div className="text-center py-12 bg-card border-2 border-primary scanlines">
+              <User className="w-16 h-16 mx-auto mb-4 text-primary" />
+              <h2 className="text-2xl font-retro font-bold glow-text mb-2">
+                ACCESS REQUIRED
+              </h2>
+              <p className="font-retro text-muted-foreground mb-6 max-w-md mx-auto">
+                Sign in to transform your notes into study materials and track your progress
+              </p>
+              <Button
+                variant="neon"
+                onClick={() => setShowAuthModal(true)}
+                className="font-retro"
+                disabled={loading}
+              >
+                <User className="w-4 h-4 mr-2" />
+                SIGN IN TO CONTINUE
+              </Button>
+            </div>
+          ) : (
+            <>
+              {!isProcessing && !showResults && (
+                <NotesInput 
+                  onProcessNotes={handleProcessNotes}
+                  isProcessing={isProcessing}
+                />
+              )}
+
+              <AIProcessor 
+                isProcessing={isProcessing}
+                onComplete={handleProcessingComplete}
+              />
+
+              <StudyResults 
+                isVisible={showResults}
+                onReset={handleReset}
+              />
+            </>
           )}
-
-          <AIProcessor 
-            isProcessing={isProcessing}
-            onComplete={handleProcessingComplete}
-          />
-
-          <StudyResults 
-            isVisible={showResults}
-            onReset={handleReset}
-          />
         </div>
 
         {/* Footer */}
