@@ -83,6 +83,112 @@ export type Database = {
         }
         Relationships: []
       }
+      room_members: {
+        Row: {
+          id: string
+          joined_at: string
+          role: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          role?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          role?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_members_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "work_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      room_messages: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          message_type: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          message_type?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          message_type?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "work_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      room_shared_notes: {
+        Row: {
+          id: string
+          note_id: string
+          room_id: string
+          shared_at: string
+          shared_by_user_id: string
+        }
+        Insert: {
+          id?: string
+          note_id: string
+          room_id: string
+          shared_at?: string
+          shared_by_user_id: string
+        }
+        Update: {
+          id?: string
+          note_id?: string
+          room_id?: string
+          shared_at?: string
+          shared_by_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_shared_notes_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_shared_notes_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "work_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       study_sessions: {
         Row: {
           completed_at: string | null
@@ -113,6 +219,36 @@ export type Database = {
           session_type?: string
           total_items?: number
           user_id?: string
+        }
+        Relationships: []
+      }
+      work_rooms: {
+        Row: {
+          code: string
+          created_at: string
+          creator_id: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          creator_id: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          creator_id?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
         }
         Relationships: []
       }

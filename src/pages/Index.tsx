@@ -6,6 +6,7 @@ import { NotesList } from "@/components/NotesList";
 import { AuthModal } from "@/components/AuthModal";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotes } from "@/hooks/useNotes";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -14,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import mascotImage from "@/assets/retro-wizard-mascot.jpg";
-import { Sparkles, Zap, Brain, User, LogOut, FileText, Wand2, Mail, Calendar, Hash } from "lucide-react";
+import { Sparkles, Zap, Brain, User, LogOut, FileText, Wand2, Mail, Calendar, Hash, Users } from "lucide-react";
 
 const Index = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -28,6 +29,7 @@ const Index = () => {
   const { user, signOut, loading } = useAuth();
   const { createNote } = useNotes();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleProcessNotes = async (notes: string) => {
     if (!user) {
@@ -224,7 +226,16 @@ const Index = () => {
                       </CardContent>
                     </Card>
                   </PopoverContent>
-                </Popover>
+                 </Popover>
+                <Button
+                  onClick={() => navigate('/workrooms')}
+                  variant="outline"
+                  size="sm"
+                  className="font-retro"
+                >
+                  <Users className="w-4 h-4 mr-1" />
+                  WORK ROOMS
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
