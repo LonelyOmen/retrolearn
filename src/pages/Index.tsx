@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NotesInput } from "@/components/NotesInput";
 import { AIProcessor } from "@/components/AIProcessor";
 import { StudyResults } from "@/components/StudyResults";
@@ -8,10 +8,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNotes } from "@/hooks/useNotes";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import mascotImage from "@/assets/retro-wizard-mascot.jpg";
-import { Sparkles, Zap, Brain, User, LogOut, FileText, Wand2 } from "lucide-react";
+import { Sparkles, Zap, Brain, User, LogOut, FileText, Wand2, Mail, Calendar, Hash } from "lucide-react";
 
 const Index = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -20,6 +23,8 @@ const Index = () => {
   const [currentNote, setCurrentNote] = useState<any>(null);
   const [enhanceWithInternet, setEnhanceWithInternet] = useState(true);
   const [activeTab, setActiveTab] = useState("transform");
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userStats, setUserStats] = useState<any>(null);
   const { user, signOut, loading } = useAuth();
   const { createNote } = useNotes();
   const { toast } = useToast();
@@ -103,6 +108,57 @@ const Index = () => {
     setActiveTab("transform");
   };
 
+  // Fetch user profile and stats
+  useEffect(() => {
+    if (user) {
+      fetchUserProfile();
+      fetchUserStats();
+    }
+  }, [user]);
+
+  const fetchUserProfile = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+    
+    setUserProfile(data);
+  };
+
+  const fetchUserStats = async () => {
+    if (!user) return;
+
+    const [notesResult, sessionsResult] = await Promise.all([
+      supabase
+        .from('notes')
+        .select('id, created_at')
+        .eq('user_id', user.id),
+      supabase
+        .from('study_sessions')
+        .select('id, created_at')
+        .eq('user_id', user.id)
+    ]);
+
+    setUserStats({
+      totalNotes: notesResult.data?.length || 0,
+      totalSessions: sessionsResult.data?.length || 0,
+      joinedDate: user.created_at
+    });
+  };
+
+  const getUserDisplayName = () => {
+    if (userProfile?.full_name) {
+      return userProfile.full_name;
+    }
+    if (user?.email) {
+      return user.email.split('@')[0];
+    }
+    return 'User';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-terminal p-4 scanlines">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -112,9 +168,63 @@ const Index = () => {
           <div className="absolute top-0 right-0">
             {user ? (
               <div className="flex items-center gap-2">
-                <span className="font-retro text-sm text-muted-foreground">
-                  {user.email}
-                </span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" className="font-retro text-sm text-muted-foreground hover:text-primary p-0 h-auto">
+                      <User className="w-4 h-4 mr-1" />
+                      {getUserDisplayName()}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-0 border-2 border-primary bg-card" align="end">
+                    <Card className="border-0">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="font-retro glow-text flex items-center gap-2">
+                          <User className="w-5 h-5" />
+                          User Profile
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm">
+                            <User className="w-4 h-4 text-primary" />
+                            <span className="font-retro">{getUserDisplayName()}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <Mail className="w-4 h-4 text-secondary" />
+                            <span className="font-retro text-muted-foreground">{user.email}</span>
+                          </div>
+                          {userStats && (
+                            <>
+                              <div className="flex items-center gap-2 text-sm">
+                                <Hash className="w-4 h-4 text-accent" />
+                                <span className="font-retro text-muted-foreground">
+                                  {userStats.totalNotes} notes created
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm">
+                                <FileText className="w-4 h-4 text-accent" />
+                                <span className="font-retro text-muted-foreground">
+                                  {userStats.totalSessions} study sessions
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm">
+                                <Calendar className="w-4 h-4 text-primary" />
+                                <span className="font-retro text-muted-foreground">
+                                  Joined {new Date(userStats.joinedDate).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Badge variant="secondary" className="font-retro text-xs">
+                            {userStats?.totalNotes > 10 ? 'Power User' : 'Getting Started'}
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </PopoverContent>
+                </Popover>
                 <Button
                   variant="ghost"
                   size="sm"
