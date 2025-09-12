@@ -81,22 +81,51 @@ export const StudyResults = ({ isVisible, onReset, noteData }: StudyResultsProps
   const keyPoints = noteData?.key_points || [];
 
   const handleExport = () => {
-    const exportData = {
-      title: noteData?.title || "Study Materials",
-      summary,
-      keyPoints,
-      flashcards,
-      qa: qaData,
-      exportDate: new Date().toISOString()
-    };
+    const title = noteData?.title || "Study Materials";
+    const date = new Date().toLocaleDateString();
+    
+    let textContent = `${title}\n`;
+    textContent += `Generated on: ${date}\n`;
+    textContent += "=" + "=".repeat(title.length + 20) + "\n\n";
 
-    const dataStr = JSON.stringify(exportData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    // Add Key Points if available
+    if (keyPoints.length > 0) {
+      textContent += "KEY POINTS\n";
+      textContent += "----------\n";
+      keyPoints.forEach((point, index) => {
+        textContent += `${index + 1}. ${point}\n`;
+      });
+      textContent += "\n";
+    }
+
+    // Add Summary
+    textContent += "SUMMARY\n";
+    textContent += "-------\n";
+    textContent += summary + "\n\n";
+
+    // Add Flashcards
+    textContent += "FLASHCARDS\n";
+    textContent += "----------\n";
+    flashcards.forEach((card, index) => {
+      textContent += `Card ${index + 1}:\n`;
+      textContent += `Q: ${card.front}\n`;
+      textContent += `A: ${card.back}\n\n`;
+    });
+
+    // Add Q&A
+    textContent += "QUESTIONS & ANSWERS\n";
+    textContent += "------------------\n";
+    qaData.forEach((item, index) => {
+      textContent += `${index + 1}. ${item.question}\n`;
+      textContent += `   ${item.answer}\n\n`;
+    });
+
+    const dataBlob = new Blob([textContent], { type: 'text/plain' });
     const url = URL.createObjectURL(dataBlob);
     
     const link = document.createElement('a');
     link.href = url;
-    link.download = `study-materials-${Date.now()}.json`;
+    link.download = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_study_materials.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
