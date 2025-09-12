@@ -80,6 +80,29 @@ export const StudyResults = ({ isVisible, onReset, noteData }: StudyResultsProps
   const qaData = noteData?.generated_qa || mockQA;
   const keyPoints = noteData?.key_points || [];
 
+  const handleExport = () => {
+    const exportData = {
+      title: noteData?.title || "Study Materials",
+      summary,
+      keyPoints,
+      flashcards,
+      qa: qaData,
+      exportDate: new Date().toISOString()
+    };
+
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `study-materials-${Date.now()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   if (!isVisible) return null;
 
   const nextCard = () => {
@@ -103,7 +126,7 @@ export const StudyResults = ({ isVisible, onReset, noteData }: StudyResultsProps
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="cyber" size="sm">
+            <Button variant="cyber" size="sm" onClick={handleExport}>
               <Download className="w-4 h-4" />
               EXPORT
             </Button>

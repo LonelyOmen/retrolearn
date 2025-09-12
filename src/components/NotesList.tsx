@@ -18,7 +18,7 @@ export function NotesList({ onViewNote }: NotesListProps) {
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     await deleteNote(id);
-    setDeletingId(false);
+    setDeletingId(null);
   };
 
   const getStatusColor = (status: string) => {
