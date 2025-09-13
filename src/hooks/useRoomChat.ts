@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/use-toast'
+import { useNotificationAPI } from '@/hooks/useNotificationAPI'
 import { Database } from '@/integrations/supabase/types'
 
 type RoomMessage = Database['public']['Tables']['room_messages']['Row'] & {
@@ -16,6 +17,7 @@ export function useRoomChat(roomId: string) {
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
   const { toast } = useToast()
+  const notificationAPI = useNotificationAPI(roomId)
 
   // Fetch messages for the room
   const fetchMessages = useCallback(async () => {
@@ -67,47 +69,20 @@ export function useRoomChat(roomId: string) {
     }
   }, [roomId, toast])
 
-  // Send a message
+  // Send a message (using NotificationAPI for real-time delivery)
   const sendMessage = async (message: string): Promise<boolean> => {
     if (!user || !roomId || !message.trim()) return false
 
-    try {
-      const { data, error } = await supabase
-        .from('room_messages')
-        .insert({
-          room_id: roomId,
-          user_id: user.id,
-          message: message.trim(),
-        })
-        .select('*')
-        .single()
-
-      if (error) throw error
-
-      // Get user profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name, email')
-        .eq('id', user.id)
-        .single()
-
-      const messageWithProfile = {
-        ...data,
-        profiles: profile
-      }
-
-      // Optimistically add the message
-      setMessages(prev => [...prev, messageWithProfile])
-
-      return true
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive",
-      })
-      return false
+    // Use NotificationAPI for instant delivery
+    const success = await notificationAPI.sendMessage(message);
+    
+    if (success) {
+      // The message will be stored in Supabase via the webhook
+      // and will appear in real-time via NotificationAPI
+      return true;
     }
+
+    return false;
   }
 
   // Set up real-time subscription for new messages
@@ -166,5 +141,6 @@ export function useRoomChat(roomId: string) {
     loading,
     sendMessage,
     refetch: fetchMessages,
+    notificationAPI,
   }
 }
