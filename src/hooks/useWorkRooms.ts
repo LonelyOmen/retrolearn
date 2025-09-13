@@ -200,23 +200,44 @@ export function useWorkRooms() {
     }
   }
 
-  // Get room members
+  // Get room members  
   const getRoomMembers = async (roomId: string): Promise<RoomMember[]> => {
     try {
-      const { data, error } = await supabase
+      // First get room members
+      const { data: members, error: memberError } = await supabase
         .from('room_members')
-        .select(`
-          *,
-          profiles (
-            full_name,
-            email
-          )
-        `)
+        .select('*')
         .eq('room_id', roomId)
         .order('joined_at', { ascending: true })
 
-      if (error) throw error
-      return data || []
+      if (memberError) throw memberError
+
+      if (!members || members.length === 0) return []
+
+      // Then get profiles for each member
+      const memberUserIds = [...new Set(members.map(m => m.user_id))]
+      const profilesData = await Promise.all(
+        memberUserIds.map(async (userId) => {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, email')
+            .eq('id', userId)
+            .single()
+          return { userId, profile }
+        })
+      )
+
+      const profilesMap = Object.fromEntries(
+        profilesData.map(p => [p.userId, p.profile])
+      )
+
+      // Combine members with their profiles
+      const membersWithProfiles = members.map(member => ({
+        ...member,
+        profiles: profilesMap[member.user_id]
+      }))
+
+      return membersWithProfiles
     } catch (error) {
       console.error('Error fetching room members:', error)
       return []

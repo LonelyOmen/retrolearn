@@ -117,7 +117,7 @@ export function useRoomChat(roomId: string) {
     fetchMessages()
 
     const channel = supabase
-      .channel('room-messages')
+      .channel(`room-messages-${roomId}`)
       .on(
         'postgres_changes',
         {
@@ -127,35 +127,31 @@ export function useRoomChat(roomId: string) {
           filter: `room_id=eq.${roomId}`
         },
         async (payload) => {
-          // Fetch the full message
-          const { data: newMessage, error: msgError } = await supabase
-            .from('room_messages')
-            .select('*')
-            .eq('id', payload.new.id)
+          // Skip if this is our own message (already added optimistically)
+          if (payload.new.user_id === user?.id) {
+            return
+          }
+
+          // Get user profile for the new message
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, email')
+            .eq('id', payload.new.user_id)
             .single()
 
-          if (!msgError && newMessage) {
-            // Get user profile
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name, email')
-              .eq('id', newMessage.user_id)
-              .single()
+          const messageWithProfile = {
+            ...payload.new,
+            profiles: profile
+          } as RoomMessage
 
-            const messageWithProfile = {
-              ...newMessage,
-              profiles: profile
+          setMessages(prev => {
+            // Check if message already exists (avoid duplicates)
+            const exists = prev.some(msg => msg.id === messageWithProfile.id)
+            if (!exists) {
+              return [...prev, messageWithProfile]
             }
-
-            setMessages(prev => {
-              // Check if message already exists (avoid duplicates)
-              const exists = prev.some(msg => msg.id === messageWithProfile.id)
-              if (!exists) {
-                return [...prev, messageWithProfile]
-              }
-              return prev
-            })
-          }
+            return prev
+          })
         }
       )
       .subscribe()
@@ -163,7 +159,7 @@ export function useRoomChat(roomId: string) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [roomId, fetchMessages])
+  }, [roomId, user?.id, fetchMessages])
 
   return {
     messages,

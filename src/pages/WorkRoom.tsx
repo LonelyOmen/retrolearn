@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { useWorkRooms } from '@/hooks/useWorkRooms'
 import { useRoomChat } from '@/hooks/useRoomChat'
@@ -53,6 +54,50 @@ export default function WorkRoom() {
     setMembers(membersData)
     setSharedNotes(notesData)
   }
+
+  // Set up real-time subscriptions for members and notes
+  useEffect(() => {
+    if (!roomId) return
+
+    const memberChannel = supabase
+      .channel('room-members')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'room_members',
+          filter: `room_id=eq.${roomId}`
+        },
+        () => {
+          // Reload member data when changes occur
+          getRoomMembers(roomId).then(setMembers)
+        }
+      )
+      .subscribe()
+
+    const notesChannel = supabase
+      .channel('room-shared-notes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'room_shared_notes',
+          filter: `room_id=eq.${roomId}`
+        },
+        () => {
+          // Reload shared notes when changes occur
+          getRoomSharedNotes(roomId).then(setSharedNotes)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(memberChannel)
+      supabase.removeChannel(notesChannel)
+    }
+  }, [roomId, getRoomMembers, getRoomSharedNotes])
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
