@@ -113,6 +113,13 @@ export type Database = {
             referencedRelation: "work_rooms"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "room_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       room_messages: {
@@ -187,6 +194,13 @@ export type Database = {
             referencedRelation: "work_rooms"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "room_shared_notes_shared_by_user_id_fkey"
+            columns: ["shared_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       study_sessions: {
@@ -250,7 +264,15 @@ export type Database = {
           name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "work_rooms_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
