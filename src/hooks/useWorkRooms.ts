@@ -25,9 +25,27 @@ export function useWorkRooms() {
     }
 
     try {
+      // First get the room IDs where user is a member
+      const { data: memberData, error: memberError } = await supabase
+        .from('room_members')
+        .select('room_id')
+        .eq('user_id', user.id)
+
+      if (memberError) throw memberError
+
+      if (!memberData || memberData.length === 0) {
+        setRooms([])
+        setLoading(false)
+        return
+      }
+
+      const roomIds = memberData.map(m => m.room_id)
+
+      // Then get the room details
       const { data, error } = await supabase
         .from('work_rooms')
         .select('*')
+        .in('id', roomIds)
         .order('created_at', { ascending: false })
 
       if (error) throw error
