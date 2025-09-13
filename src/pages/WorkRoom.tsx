@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Send, Users, FileText, Copy, Share } from 'lucide-react'
 import { Database } from '@/integrations/supabase/types'
 import { useToast } from '@/hooks/use-toast'
+import SharedNoteDialog from '@/components/SharedNoteDialog'
 
 type WorkRoom = Database['public']['Tables']['work_rooms']['Row']
 
@@ -33,6 +34,8 @@ export default function WorkRoom() {
   const [sharedNotes, setSharedNotes] = useState<any[]>([])
   const [messageInput, setMessageInput] = useState('')
   const [selectedNoteId, setSelectedNoteId] = useState<string>('')
+  const [selectedShared, setSelectedShared] = useState<any | null>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
 
   const currentRoom = rooms.find(r => r.id === roomId)
 
@@ -60,7 +63,7 @@ export default function WorkRoom() {
     if (!roomId) return
 
     const memberChannel = supabase
-      .channel('room-members')
+      .channel(`room-members-${roomId}`)
       .on(
         'postgres_changes',
         {
@@ -77,7 +80,7 @@ export default function WorkRoom() {
       .subscribe()
 
     const notesChannel = supabase
-      .channel('room-shared-notes')
+      .channel(`room-shared-notes-${roomId}`)
       .on(
         'postgres_changes',
         {
@@ -98,6 +101,11 @@ export default function WorkRoom() {
       supabase.removeChannel(notesChannel)
     }
   }, [roomId, getRoomMembers, getRoomSharedNotes])
+
+  // Auto-scroll chat to newest message
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages.length])
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -217,6 +225,7 @@ export default function WorkRoom() {
                           </div>
                         </div>
                       ))}
+                      <div ref={bottomRef} />
                     </div>
                   </ScrollArea>
 
@@ -287,7 +296,7 @@ export default function WorkRoom() {
                     <ScrollArea className="h-64">
                       <div className="space-y-2">
                         {sharedNotes.map((sharedNote) => (
-                          <div key={sharedNote.id} className="p-3 rounded-md border space-y-2">
+                          <div key={sharedNote.id} onClick={() => setSelectedShared(sharedNote)} className="p-3 rounded-md border space-y-2 cursor-pointer hover:bg-accent/50 transition-colors">
                             <div className="flex items-center gap-2">
                               <FileText className="h-4 w-4 text-muted-foreground" />
                               <span className="text-sm font-medium line-clamp-1">
@@ -352,6 +361,12 @@ export default function WorkRoom() {
             </Tabs>
           </div>
         </div>
+
+        <SharedNoteDialog
+          open={!!selectedShared}
+          note={selectedShared?.note}
+          onOpenChange={(open) => { if (!open) setSelectedShared(null) }}
+        />
       </div>
     </div>
   )
