@@ -258,7 +258,11 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button className="font-retro group-hover:bg-primary/20 transition-colors" variant="outline">
+                <Button 
+                  className="font-retro group-hover:bg-primary/20 transition-colors" 
+                  variant="outline"
+                  onClick={() => navigate('/note-wizard')}
+                >
                   <Sparkles className="w-4 h-4 mr-2" />
                   START TRANSFORMING
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
