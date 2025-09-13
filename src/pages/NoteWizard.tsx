@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import mascotImage from "@/assets/retro-wizard-mascot.jpg";
 import { Sparkles, Zap, Brain, ArrowLeft, Wand2 } from "lucide-react";
+import { AuthModal } from "@/components/AuthModal";
 
 const NoteWizard = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -20,6 +21,7 @@ const NoteWizard = () => {
   const { createNote } = useNotes();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const handleProcessNotes = async (notes: string) => {
     if (!user) {
@@ -95,10 +97,6 @@ const NoteWizard = () => {
     setCurrentNote(null);
   };
 
-  if (!user) {
-    navigate('/');
-    return null;
-  }
 
   return (
     <div className="min-h-screen bg-gradient-terminal p-4 scanlines">
@@ -148,25 +146,36 @@ const NoteWizard = () => {
 
         {/* Main Interface */}
         <div className="space-y-6">
-          {!isProcessing && !showResults && !currentNote && (
-            <NotesInput 
-              onProcessNotes={handleProcessNotes}
-              isProcessing={isProcessing}
-              enhanceWithInternet={enhanceWithInternet}
-              onToggleInternet={setEnhanceWithInternet}
-            />
+          {!user ? (
+            <div className="text-center py-12 bg-card border-2 border-primary scanlines">
+              <Sparkles className="w-16 h-16 mx-auto mb-4 text-primary" />
+              <h2 className="text-2xl font-retro font-bold glow-text mb-2">ACCESS REQUIRED</h2>
+              <p className="font-retro text-muted-foreground mb-6 max-w-md mx-auto">Sign in to transform your notes using the Retro Note Wizard</p>
+              <Button variant="neon" onClick={() => setShowAuthModal(true)} className="font-retro">LOGIN TO CONTINUE</Button>
+            </div>
+          ) : (
+            <>
+              {!isProcessing && !showResults && !currentNote && (
+                <NotesInput 
+                  onProcessNotes={handleProcessNotes}
+                  isProcessing={isProcessing}
+                  enhanceWithInternet={enhanceWithInternet}
+                  onToggleInternet={setEnhanceWithInternet}
+                />
+              )}
+
+              <AIProcessor 
+                isProcessing={isProcessing}
+                onComplete={handleProcessingComplete}
+              />
+
+              <StudyResults 
+                isVisible={!!currentNote && !isProcessing}
+                onReset={handleReset}
+                noteData={currentNote}
+              />
+            </>
           )}
-
-          <AIProcessor 
-            isProcessing={isProcessing}
-            onComplete={handleProcessingComplete}
-          />
-
-          <StudyResults 
-            isVisible={!!currentNote && !isProcessing}
-            onReset={handleReset}
-            noteData={currentNote}
-          />
         </div>
 
         {/* Footer */}
@@ -179,6 +188,8 @@ const NoteWizard = () => {
             <Sparkles className="w-4 h-4 text-accent" />
           </div>
         </footer>
+      {/* Auth Modal */}
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       </div>
     </div>
   );
