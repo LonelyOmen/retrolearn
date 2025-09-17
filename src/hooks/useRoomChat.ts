@@ -92,7 +92,7 @@ export function useRoomChat(roomId: string) {
     fetchMessages()
 
     const channel = supabase
-      .channel(`room-messages-${roomId}`)
+      .channel(`messages:${roomId}`)
       .on(
         'postgres_changes',
         {
@@ -102,7 +102,7 @@ export function useRoomChat(roomId: string) {
           filter: `room_id=eq.${roomId}`
         },
         async (payload) => {
-          // Always process new inserts, including our own messages
+          console.log('New message received via realtime:', payload.new)
 
           // Get user profile for the new message
           const { data: profile } = await supabase
@@ -120,18 +120,23 @@ export function useRoomChat(roomId: string) {
             // Check if message already exists (avoid duplicates)
             const exists = prev.some(msg => msg.id === messageWithProfile.id)
             if (!exists) {
+              console.log('Adding new message to chat:', messageWithProfile)
               return [...prev, messageWithProfile]
             }
+            console.log('Message already exists, skipping duplicate')
             return prev
           })
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status)
+      })
 
     return () => {
+      console.log('Cleaning up realtime subscription for room:', roomId)
       supabase.removeChannel(channel)
     }
-  }, [roomId, user?.id, fetchMessages])
+  }, [roomId, fetchMessages])
 
   return {
     messages,
