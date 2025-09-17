@@ -73,12 +73,29 @@ export function useRoomChat(roomId: string) {
   const sendMessage = async (message: string): Promise<boolean> => {
     if (!user || !roomId || !message.trim()) return false
 
+    const trimmed = message.trim()
+
     // Use NotificationAPI for instant delivery
-    const success = await notificationAPI.sendMessage(message);
+    const success = await notificationAPI.sendMessage(trimmed);
     
     if (success) {
-      // The message will be stored in Supabase via the webhook
-      // and will appear in real-time via NotificationAPI
+      // Optimistic local echo so sender sees it instantly
+      const tempMessage: RoomMessage = {
+        id: `temp-${crypto.randomUUID()}` as any,
+        room_id: roomId as any,
+        user_id: user.id as any,
+        message: trimmed,
+        message_type: 'text',
+        created_at: new Date().toISOString() as any,
+        profiles: undefined,
+      }
+      setMessages(prev => [...prev, tempMessage])
+
+      // Soft refresh from DB shortly after to replace temp with persisted row
+      setTimeout(() => {
+        fetchMessages()
+      }, 300)
+
       return true;
     }
 
@@ -138,6 +155,17 @@ export function useRoomChat(roomId: string) {
     }
   }, [roomId, fetchMessages])
 
+  // Auto-refresh when NotificationAPI delivers messages (both send and receive)
+  useEffect(() => {
+    if (!roomId) return
+    if (notificationAPI?.messages?.length) {
+      const t = setTimeout(() => {
+        fetchMessages()
+      }, 300)
+      return () => clearTimeout(t)
+    }
+  }, [roomId, notificationAPI?.messages, fetchMessages])
+ 
   return {
     messages,
     loading,
