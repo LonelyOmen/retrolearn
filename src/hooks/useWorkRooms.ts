@@ -293,26 +293,16 @@ export function useWorkRooms() {
     if (!user) return false
 
     try {
-      // Get the original note
-      const { data: originalNote, error: noteError } = await supabase
-        .from('notes')
-        .select('*')
-        .eq('id', noteId)
-        .eq('user_id', user.id)
-        .single()
+      // Use the secure RPC function to share the note
+      const { data: memberCount, error } = await supabase
+        .rpc('share_note_to_room', {
+          p_room_id: roomId,
+          p_note_id: noteId
+        })
 
-      if (noteError) throw noteError
+      if (error) throw error
 
-      // Get all room members except the sender
-      const { data: members, error: membersError } = await supabase
-        .from('room_members')
-        .select('user_id')
-        .eq('room_id', roomId)
-        .neq('user_id', user.id)
-
-      if (membersError) throw membersError
-
-      if (!members || members.length === 0) {
+      if (memberCount === 0) {
         toast({
           title: "No recipients",
           description: "No other members in this room to share with",
@@ -321,52 +311,17 @@ export function useWorkRooms() {
         return false
       }
 
-      // Create note copies for each member
-      const noteInserts = members.map(member => ({
-        original_content: originalNote.original_content,
-        title: originalNote.title,
-        processing_status: originalNote.processing_status,
-        key_points: originalNote.key_points,
-        summary: originalNote.summary,
-        generated_qa: originalNote.generated_qa,
-        generated_flashcards: originalNote.generated_flashcards,
-        user_id: member.user_id,
-        is_shared_note: true,
-        shared_from_user_id: user.id,
-        shared_from_room_id: roomId,
-        original_note_id: noteId
-      }))
-
-      const { error: insertError } = await supabase
-        .from('notes')
-        .insert(noteInserts)
-
-      if (insertError) throw insertError
-
-      // Also record the sharing event in room_shared_notes
-      const { error: shareRecordError } = await supabase
-        .from('room_shared_notes')
-        .insert({
-          room_id: roomId,
-          note_id: noteId,
-          shared_by_user_id: user.id
-        })
-
-      if (shareRecordError) {
-        console.error('Error recording share event:', shareRecordError)
-        // Don't fail the whole operation if just the record fails
-      }
-
       toast({
         title: "Note shared!",
-        description: `Your note has been added to ${members.length} member${members.length > 1 ? 's' : ''} libraries`,
+        description: `Your note has been added to ${memberCount} member${memberCount > 1 ? 's' : ''} libraries`,
       })
 
       return true
     } catch (error: any) {
+      console.error('Error sharing note:', error)
       toast({
         title: "Error",
-        description: "Failed to share note",
+        description: error?.message || "Failed to share note",
         variant: "destructive",
       })
       return false

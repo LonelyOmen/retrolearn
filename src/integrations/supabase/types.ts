@@ -310,6 +310,10 @@ export type Database = {
         Args: { p_room_id: string }
         Returns: boolean
       }
+      share_note_to_room: {
+        Args: { p_note_id: string; p_room_id: string }
+        Returns: number
+      }
       users_share_room: {
         Args: { user1_id: string; user2_id: string }
         Returns: boolean
