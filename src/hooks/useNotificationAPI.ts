@@ -41,9 +41,51 @@ export function useNotificationAPI(roomId: string) {
     }
   }, [user, roomId, toast]);
 
+  // Ensure the current user is a member of the room before sending
+  const ensureMembership = useCallback(async (): Promise<boolean> => {
+    if (!user || !roomId) return false;
+
+    try {
+      const { data } = await supabase
+        .from('room_members')
+        .select('id')
+        .eq('room_id', roomId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (data) return true; // already a member
+
+      // Try to join as a regular member
+      const { error: insertErr } = await supabase
+        .from('room_members')
+        .insert({ room_id: roomId, user_id: user.id, role: 'member' });
+
+      if (insertErr) {
+        // If unique violation, treat as success (race condition)
+        if ((insertErr as any).code === '23505') return true;
+        console.warn('Could not ensure membership:', insertErr);
+        toast({
+          title: 'Join required',
+          description: 'You need to join this room before chatting. Use the room code to join.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      console.warn('Membership check failed:', e);
+      return false;
+    }
+  }, [user, roomId, toast]);
+
   // Send message via NotificationAPI
   const sendMessage = useCallback(async (message: string): Promise<boolean> => {
     if (!user || !roomId || !message.trim()) return false;
+
+    // Ensure the user is allowed to post in this room
+    const isMember = await ensureMembership();
+    if (!isMember) return false;
 
     const trimmed = message.trim();
 
@@ -95,7 +137,7 @@ export function useNotificationAPI(roomId: string) {
       // Success via fallback
       return true;
     }
-  }, [user, roomId, toast]);
+  }, [user, roomId, toast, ensureMembership]);
 
   // Send typing indicator
   const sendTypingIndicator = useCallback(async (isTyping: boolean) => {
