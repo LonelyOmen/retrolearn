@@ -343,6 +343,20 @@ export function useWorkRooms() {
 
       if (insertError) throw insertError
 
+      // Also record the sharing event in room_shared_notes
+      const { error: shareRecordError } = await supabase
+        .from('room_shared_notes')
+        .insert({
+          room_id: roomId,
+          note_id: noteId,
+          shared_by_user_id: user.id
+        })
+
+      if (shareRecordError) {
+        console.error('Error recording share event:', shareRecordError)
+        // Don't fail the whole operation if just the record fails
+      }
+
       toast({
         title: "Note shared!",
         description: `Your note has been added to ${members.length} member${members.length > 1 ? 's' : ''} libraries`,
