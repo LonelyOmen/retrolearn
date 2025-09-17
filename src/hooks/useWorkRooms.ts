@@ -241,7 +241,12 @@ export function useWorkRooms() {
         .eq('room_id', roomId)
         .order('joined_at', { ascending: true })
 
-      if (memberError) throw memberError
+      if (memberError) {
+        console.error('Error fetching room members:', memberError)
+        throw memberError
+      }
+
+      console.log('Fetched room members:', members)
 
       if (!members || members.length === 0) return []
 
@@ -249,11 +254,18 @@ export function useWorkRooms() {
       const memberUserIds = [...new Set(members.map(m => m.user_id))]
       const profilesData = await Promise.all(
         memberUserIds.map(async (userId) => {
-          const { data: profile } = await supabase
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('full_name, email')
             .eq('id', userId)
             .single()
+          
+          if (profileError) {
+            console.error('Error fetching profile for user:', userId, profileError)
+          } else {
+            console.log('Fetched profile for user:', userId, profile)
+          }
+          
           return { userId, profile }
         })
       )
@@ -268,6 +280,7 @@ export function useWorkRooms() {
         profiles: profilesMap[member.user_id]
       }))
 
+      console.log('Final members with profiles:', membersWithProfiles)
       return membersWithProfiles
     } catch (error) {
       console.error('Error fetching room members:', error)

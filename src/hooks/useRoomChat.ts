@@ -39,11 +39,18 @@ export function useRoomChat(roomId: string) {
       const userIds = [...new Set(data?.map(msg => msg.user_id) || [])]
       const profilesData = await Promise.all(
         userIds.map(async (userId) => {
-          const { data: profile } = await supabase
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('full_name, email')
             .eq('id', userId)
             .single()
+          
+          if (profileError) {
+            console.error('Error fetching profile for user:', userId, profileError)
+          } else {
+            console.log('Fetched profile for user:', userId, profile)
+          }
+          
           return { userId, profile }
         })
       )
@@ -56,6 +63,8 @@ export function useRoomChat(roomId: string) {
         ...msg,
         profiles: profilesMap[msg.user_id]
       })) || []
+
+      console.log('Final messages with profiles:', messagesWithProfiles)
 
       setMessages(messagesWithProfiles)
     } catch (error: any) {
@@ -128,6 +137,7 @@ export function useRoomChat(roomId: string) {
             .eq('id', payload.new.user_id)
             .single()
 
+          console.log('Profile for new message:', profile)
           const messageWithProfile = {
             ...payload.new,
             profiles: profile
