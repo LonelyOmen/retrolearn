@@ -200,6 +200,37 @@ export function useWorkRooms() {
     }
   }
 
+  // Delete a room (only for creators)
+  const deleteRoom = async (roomId: string): Promise<boolean> => {
+    if (!user) return false
+
+    try {
+      const { error } = await supabase
+        .from('work_rooms')
+        .delete()
+        .eq('id', roomId)
+        .eq('creator_id', user.id)
+
+      if (error) throw error
+
+      setRooms(prev => prev.filter(room => room.id !== roomId))
+      
+      toast({
+        title: "Room deleted",
+        description: "Work room has been permanently deleted",
+      })
+
+      return true
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to delete room",
+        variant: "destructive",
+      })
+      return false
+    }
+  }
+
   // Get room members  
   const getRoomMembers = async (roomId: string): Promise<RoomMember[]> => {
     try {
@@ -319,6 +350,7 @@ export function useWorkRooms() {
     createRoom,
     joinRoom,
     leaveRoom,
+    deleteRoom,
     getRoomMembers,
     shareNoteToRoom,
     getRoomSharedNotes,

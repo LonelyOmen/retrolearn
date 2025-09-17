@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Users, MessageSquare, ExternalLink, Copy, LogOut } from 'lucide-react'
+import { Users, MessageSquare, ExternalLink, Copy, LogOut, Trash2 } from 'lucide-react'
 import { useWorkRooms } from '@/hooks/useWorkRooms'
 import { useToast } from '@/hooks/use-toast'
 import { Database } from '@/integrations/supabase/types'
@@ -16,9 +16,10 @@ interface WorkRoomCardProps {
 }
 
 export function WorkRoomCard({ room, onEnterRoom, isCreator }: WorkRoomCardProps) {
-  const { leaveRoom } = useWorkRooms()
+  const { leaveRoom, deleteRoom } = useWorkRooms()
   const { toast } = useToast()
   const [isLeaving, setIsLeaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(room.code)
@@ -41,6 +42,16 @@ export function WorkRoomCard({ room, onEnterRoom, isCreator }: WorkRoomCardProps
     setIsLeaving(true)
     await leaveRoom(room.id)
     setIsLeaving(false)
+  }
+
+  const handleDeleteRoom = async () => {
+    if (!isCreator) return
+
+    setIsDeleting(true)
+    const success = await deleteRoom(room.id)
+    if (!success) {
+      setIsDeleting(false)
+    }
   }
 
   return (
@@ -111,6 +122,18 @@ export function WorkRoomCard({ room, onEnterRoom, isCreator }: WorkRoomCardProps
                   className="text-destructive hover:text-destructive hover:bg-destructive/10"
                 >
                   <LogOut className="h-4 w-4" />
+                </Button>
+              )}
+              
+              {isCreator && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleDeleteRoom}
+                  disabled={isDeleting}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               )}
             </div>
