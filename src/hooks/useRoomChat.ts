@@ -102,10 +102,7 @@ export function useRoomChat(roomId: string) {
           filter: `room_id=eq.${roomId}`
         },
         async (payload) => {
-          // Skip if this is our own message (already added optimistically)
-          if (payload.new.user_id === user?.id) {
-            return
-          }
+          // Always process new inserts, including our own messages
 
           // Get user profile for the new message
           const { data: profile } = await supabase

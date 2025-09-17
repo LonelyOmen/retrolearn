@@ -45,36 +45,55 @@ export function useNotificationAPI(roomId: string) {
   const sendMessage = useCallback(async (message: string): Promise<boolean> => {
     if (!user || !roomId || !message.trim()) return false;
 
+    const trimmed = message.trim();
+
     try {
       const { data, error } = await supabase.functions.invoke('notificationapi-webhook', {
         body: {
           action: 'send_message',
           roomId,
-          message: message.trim(),
+          message: trimmed,
           userId: user.id,
         }
       });
 
       if (error) throw error;
 
-      // Add message optimistically to local state
+      // Optimistic local echo (widget-only state)
       const newMessage: NotificationAPIMessage = {
-        message: message.trim(),
+        message: trimmed,
         userId: user.id,
         roomId,
         timestamp: new Date().toISOString(),
       };
-      
       setMessages(prev => [...prev, newMessage]);
+
       return true;
     } catch (error) {
-      console.error('Failed to send message:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive",
-      });
-      return false;
+      console.warn('NotificationAPI failed, falling back to Supabase insert. Error:', error);
+
+      // Fallback: store message directly in Supabase; realtime will deliver it
+      const { error: insertError } = await supabase
+        .from('room_messages')
+        .insert({
+          room_id: roomId,
+          user_id: user.id,
+          message: trimmed,
+          message_type: 'text',
+        });
+
+      if (insertError) {
+        console.error('Fallback insert failed:', insertError);
+        toast({
+          title: 'Error',
+          description: 'Failed to send message',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      // Success via fallback
+      return true;
     }
   }, [user, roomId, toast]);
 
