@@ -20,9 +20,13 @@ export type Database = {
           generated_flashcards: Json | null
           generated_qa: Json | null
           id: string
+          is_shared_note: boolean | null
           key_points: string[] | null
           original_content: string
+          original_note_id: string | null
           processing_status: string
+          shared_from_room_id: string | null
+          shared_from_user_id: string | null
           summary: string | null
           title: string
           updated_at: string
@@ -33,9 +37,13 @@ export type Database = {
           generated_flashcards?: Json | null
           generated_qa?: Json | null
           id?: string
+          is_shared_note?: boolean | null
           key_points?: string[] | null
           original_content: string
+          original_note_id?: string | null
           processing_status?: string
+          shared_from_room_id?: string | null
+          shared_from_user_id?: string | null
           summary?: string | null
           title?: string
           updated_at?: string
@@ -46,15 +54,34 @@ export type Database = {
           generated_flashcards?: Json | null
           generated_qa?: Json | null
           id?: string
+          is_shared_note?: boolean | null
           key_points?: string[] | null
           original_content?: string
+          original_note_id?: string | null
           processing_status?: string
+          shared_from_room_id?: string | null
+          shared_from_user_id?: string | null
           summary?: string | null
           title?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notes_shared_from_room_id_fkey"
+            columns: ["shared_from_room_id"]
+            isOneToOne: false
+            referencedRelation: "work_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notes_shared_from_user_id_fkey"
+            columns: ["shared_from_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

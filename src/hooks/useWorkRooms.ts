@@ -275,34 +275,64 @@ export function useWorkRooms() {
     }
   }
 
-  // Share a note to room
+  // Share a note to room - copies to all room members' libraries
   const shareNoteToRoom = async (roomId: string, noteId: string): Promise<boolean> => {
     if (!user) return false
 
     try {
-      const { error } = await supabase
-        .from('room_shared_notes')
-        .insert({
-          room_id: roomId,
-          note_id: noteId,
-          shared_by_user_id: user.id
-        })
+      // Get the original note
+      const { data: originalNote, error: noteError } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('id', noteId)
+        .eq('user_id', user.id)
+        .single()
 
-      if (error) {
-        if (error.code === '23505') { // Already shared
-          toast({
-            title: "Already shared",
-            description: "This note is already shared in the room",
-            variant: "destructive",
-          })
-          return false
-        }
-        throw error
+      if (noteError) throw noteError
+
+      // Get all room members except the sender
+      const { data: members, error: membersError } = await supabase
+        .from('room_members')
+        .select('user_id')
+        .eq('room_id', roomId)
+        .neq('user_id', user.id)
+
+      if (membersError) throw membersError
+
+      if (!members || members.length === 0) {
+        toast({
+          title: "No recipients",
+          description: "No other members in this room to share with",
+          variant: "destructive",
+        })
+        return false
       }
+
+      // Create note copies for each member
+      const noteInserts = members.map(member => ({
+        original_content: originalNote.original_content,
+        title: originalNote.title,
+        processing_status: originalNote.processing_status,
+        key_points: originalNote.key_points,
+        summary: originalNote.summary,
+        generated_qa: originalNote.generated_qa,
+        generated_flashcards: originalNote.generated_flashcards,
+        user_id: member.user_id,
+        is_shared_note: true,
+        shared_from_user_id: user.id,
+        shared_from_room_id: roomId,
+        original_note_id: noteId
+      }))
+
+      const { error: insertError } = await supabase
+        .from('notes')
+        .insert(noteInserts)
+
+      if (insertError) throw insertError
 
       toast({
         title: "Note shared!",
-        description: "Your note has been shared with the room",
+        description: `Your note has been added to ${members.length} member${members.length > 1 ? 's' : ''} libraries`,
       })
 
       return true

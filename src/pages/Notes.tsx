@@ -4,7 +4,8 @@ import { StudyResults } from "@/components/StudyResults";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, Sparkles } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, FileText, Sparkles, Users } from "lucide-react";
 
 const Notes = () => {
   const [currentNote, setCurrentNote] = useState<any>(null);
@@ -68,7 +69,26 @@ const Notes = () => {
               noteData={currentNote}
             />
           ) : (
-            <NotesList onViewNote={handleViewNote} />
+            <Tabs defaultValue="my-notes" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="my-notes" className="flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  My Notes
+                </TabsTrigger>
+                <TabsTrigger value="shared-notes" className="flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Shared Notes
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="my-notes" className="space-y-4">
+                <NotesList onViewNote={handleViewNote} notesType="regular" />
+              </TabsContent>
+              
+              <TabsContent value="shared-notes" className="space-y-4">
+                <NotesList onViewNote={handleViewNote} notesType="shared" />
+              </TabsContent>
+            </Tabs>
           )}
         </div>
 

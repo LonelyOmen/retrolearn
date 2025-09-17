@@ -9,11 +9,14 @@ import { useState } from "react";
 
 interface NotesListProps {
   onViewNote: (note: any) => void;
+  notesType?: 'regular' | 'shared';
 }
 
-export function NotesList({ onViewNote }: NotesListProps) {
-  const { notes, loading, deleteNote } = useNotes();
+export function NotesList({ onViewNote, notesType = 'regular' }: NotesListProps) {
+  const { notes, sharedNotes, loading, deleteNote } = useNotes();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const displayNotes = notesType === 'shared' ? sharedNotes : notes;
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
@@ -59,24 +62,35 @@ export function NotesList({ onViewNote }: NotesListProps) {
     );
   }
 
-  if (notes.length === 0) {
+  if (displayNotes.length === 0) {
+    const title = notesType === 'shared' ? 'SHARED NOTES' : 'MY NOTES';
+    const description = notesType === 'shared' 
+      ? 'Notes shared with you from work rooms will appear here'
+      : 'Your transformed notes will appear here';
+    const emptyMessage = notesType === 'shared'
+      ? 'No shared notes yet'
+      : 'No notes yet';
+    const emptySubtext = notesType === 'shared'
+      ? 'When someone shares notes in your work rooms, they\'ll appear here'
+      : 'Start by transforming some notes to see them here';
+
     return (
       <Card className="border-2 border-primary scanlines">
         <CardHeader>
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />
-            <CardTitle className="font-retro glow-text">MY NOTES</CardTitle>
+            <CardTitle className="font-retro glow-text">{title}</CardTitle>
           </div>
           <CardDescription className="font-retro">
-            Your transformed notes will appear here
+            {description}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
             <Sparkles className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-            <div className="font-retro text-muted-foreground mb-2">No notes yet</div>
+            <div className="font-retro text-muted-foreground mb-2">{emptyMessage}</div>
             <div className="text-sm font-retro text-muted-foreground">
-              Start by transforming some notes to see them here
+              {emptySubtext}
             </div>
           </div>
         </CardContent>
@@ -84,26 +98,31 @@ export function NotesList({ onViewNote }: NotesListProps) {
     );
   }
 
+  const title = notesType === 'shared' ? 'SHARED NOTES' : 'MY NOTES';
+
   return (
     <Card className="border-2 border-primary scanlines">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />
-            <CardTitle className="font-retro glow-text">MY NOTES</CardTitle>
+            <CardTitle className="font-retro glow-text">{title}</CardTitle>
           </div>
           <Badge variant="secondary" className="font-retro">
-            {notes.length} notes
+            {displayNotes.length} notes
           </Badge>
         </div>
         <CardDescription className="font-retro">
-          Your transformed notes and study materials
+          {notesType === 'shared' 
+            ? 'Notes shared with you from work rooms' 
+            : 'Your transformed notes and study materials'
+          }
         </CardDescription>
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-[400px] pr-4">
           <div className="space-y-4">
-            {notes.map((note) => (
+            {displayNotes.map((note) => (
               <Card key={note.id} className="border border-secondary">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-4">
@@ -114,6 +133,12 @@ export function NotesList({ onViewNote }: NotesListProps) {
                           {getStatusText(note.processing_status)}
                         </Badge>
                       </div>
+                      
+                      {notesType === 'shared' && (note as any).shared_from_profile && (
+                        <div className="text-xs text-accent font-retro">
+                          Shared by: {(note as any).shared_from_profile.full_name || (note as any).shared_from_profile.email}
+                        </div>
+                      )}
                       
                       <p className="text-sm text-muted-foreground font-retro line-clamp-2">
                         {note.original_content?.slice(0, 120)}

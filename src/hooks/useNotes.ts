@@ -10,14 +10,16 @@ type UpdateNote = Database['public']['Tables']['notes']['Update']
 
 export function useNotes() {
   const [notes, setNotes] = useState<Note[]>([])
+  const [sharedNotes, setSharedNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
   const { toast } = useToast()
 
-  // Fetch user's notes
+  // Fetch user's notes (both regular and shared)
   const fetchNotes = async () => {
     if (!user) {
       setNotes([])
+      setSharedNotes([])
       setLoading(false)
       return
     }
@@ -25,13 +27,24 @@ export function useNotes() {
     try {
       const { data, error } = await supabase
         .from('notes')
-        .select('*')
+        .select(`
+          *,
+          shared_from_profile:shared_from_user_id (
+            full_name,
+            email
+          )
+        `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
 
-      setNotes(data || [])
+      const allNotes = data || []
+      const regularNotes = allNotes.filter(note => !note.is_shared_note)
+      const sharedNotesData = allNotes.filter(note => note.is_shared_note)
+
+      setNotes(regularNotes)
+      setSharedNotes(sharedNotesData)
     } catch (error: any) {
       toast({
         title: "Error",
@@ -135,6 +148,7 @@ export function useNotes() {
 
   return {
     notes,
+    sharedNotes,
     loading,
     createNote,
     updateNote,
