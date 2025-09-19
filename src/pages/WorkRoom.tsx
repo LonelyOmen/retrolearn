@@ -90,9 +90,17 @@ export default function WorkRoom() {
           table: 'room_shared_notes',
           filter: `room_id=eq.${roomId}`
         },
-        () => {
+        (payload) => {
           // Reload shared notes when changes occur
           getRoomSharedNotes(roomId).then(setSharedNotes)
+          
+          // Show notification for new shared notes
+          if (payload.eventType === 'INSERT' && payload.new.shared_by_user_id !== user?.id) {
+            toast({
+              title: "New note shared!",
+              description: "A new note has been shared in this room",
+            })
+          }
         }
       )
       .subscribe()
@@ -323,9 +331,14 @@ export default function WorkRoom() {
                             <p className="text-xs text-muted-foreground">
                               Shared by {sharedNote.profiles?.full_name || sharedNote.profiles?.email}
                             </p>
-                            <p className="text-xs text-muted-foreground line-clamp-2">
-                              {sharedNote.note?.summary || sharedNote.note?.original_content?.substring(0, 100)}
-                            </p>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => navigate('/notes')}
+                              className="mt-2 text-xs h-6"
+                            >
+                              View in Library
+                            </Button>
                           </div>
                         ))}
                         
