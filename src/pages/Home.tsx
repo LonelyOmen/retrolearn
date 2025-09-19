@@ -20,7 +20,8 @@ import {
   Calendar, 
   Hash,
   ArrowRight,
-  Zap
+  Zap,
+  Trophy
 } from 'lucide-react'
 import { AuthModal } from '@/components/AuthModal'
 
@@ -242,7 +243,7 @@ export default function Home() {
             </Button>
           </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {/* Retro Note Wizard */}
             <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-primary bg-card scanlines cursor-pointer"
                   onClick={() => navigate('/note-wizard')}>
@@ -311,6 +312,29 @@ export default function Home() {
                 <Button className="font-retro group-hover:bg-accent/20 transition-colors" variant="outline">
                   <Users className="w-4 h-4 mr-2" />
                   JOIN ROOMS
+                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Quizzes */}
+            <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-warning bg-card scanlines cursor-pointer"
+                  onClick={() => navigate('/quizzes')}>
+              <CardHeader className="text-center pb-4">
+                <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-warning/10 group-hover:bg-warning/20 transition-colors">
+                  <Trophy className="w-8 h-8 text-warning group-hover:scale-110 transition-transform" />
+                </div>
+                <CardTitle className="font-retro text-xl glow-text group-hover:glow-blue transition-all">
+                  QUIZZES
+                </CardTitle>
+                <CardDescription className="font-retro text-muted-foreground">
+                  Test your knowledge with AI-generated multiple choice quizzes
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-center">
+                <Button className="font-retro group-hover:bg-warning/20 transition-colors" variant="outline">
+                  <Trophy className="w-4 h-4 mr-2" />
+                  START QUIZ
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </CardContent>

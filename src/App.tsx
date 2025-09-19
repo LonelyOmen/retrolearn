@@ -8,6 +8,7 @@ import NoteWizard from "./pages/NoteWizard";
 import Notes from "./pages/Notes";
 import WorkRooms from "./pages/WorkRooms";
 import WorkRoom from "./pages/WorkRoom";
+import Quizzes from "./pages/Quizzes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/notes" element={<Notes />} />
           <Route path="/workrooms" element={<WorkRooms />} />
           <Route path="/workroom/:roomId" element={<WorkRoom />} />
+          <Route path="/quizzes" element={<Quizzes />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
