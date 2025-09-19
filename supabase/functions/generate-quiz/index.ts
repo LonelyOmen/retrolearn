@@ -102,7 +102,19 @@ serve(async (req) => {
 
     let quizData;
     try {
-      quizData = JSON.parse(content);
+      // Extract JSON even if wrapped in code fences
+      let text = String(content).trim();
+      const fenced = text.match(/```(?:json)?\n([\s\S]*?)```/i);
+      if (fenced) text = fenced[1].trim();
+      // Fallback: slice between first { and last }
+      if (!fenced) {
+        const first = text.indexOf('{');
+        const last = text.lastIndexOf('}');
+        if (first !== -1 && last !== -1) {
+          text = text.slice(first, last + 1);
+        }
+      }
+      quizData = JSON.parse(text);
     } catch (parseError) {
       console.error('Failed to parse Gemini response:', content);
       throw new Error('Failed to parse AI response');

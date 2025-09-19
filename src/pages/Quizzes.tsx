@@ -126,31 +126,20 @@ export default function Quizzes() {
     setCreating(true)
     
     try {
-      // Get auth token
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) {
-        throw new Error('Authentication required')
-      }
-
-      // Call AI generation edge function
-      const response = await fetch(`https://khwpljqvkuzftvxdervq.supabase.co/functions/v1/generate-quiz`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
+      // Call AI generation edge function via Supabase client
+      const { data: result, error: fnError } = await supabase.functions.invoke('generate-quiz', {
+        body: {
           title: createTitle,
           description: createDescription,
           topic: createTopic
-        })
+        }
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to generate quiz')
+      if (fnError) {
+        throw fnError
       }
 
-      const { quiz_id } = await response.json()
+      const { quiz_id } = (result || {}) as { quiz_id: string }
       
       toast({
         title: "Quiz created successfully!",
