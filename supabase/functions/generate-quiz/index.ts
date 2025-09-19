@@ -13,12 +13,12 @@ serve(async (req) => {
   }
 
   try {
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
+    if (!geminiApiKey) {
+      throw new Error('Gemini API key not configured');
     }
 
     if (!supabaseUrl || !supabaseServiceKey) {
@@ -49,19 +49,16 @@ serve(async (req) => {
 
     console.log('Generating quiz for topic:', topic);
 
-    // Generate quiz with OpenAI
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Generate quiz with Gemini
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a quiz generator. Create exactly 10 multiple choice questions with 4 options each (A, B, C, D). 
+        contents: [{
+          parts: [{
+            text: `You are a quiz generator. Create exactly 10 multiple choice questions with 4 options each (A, B, C, D). 
             Each question should be challenging but fair, and cover different aspects of the topic.
             
             Format your response as a JSON object with this exact structure:
@@ -82,32 +79,32 @@ serve(async (req) => {
             - Exactly 10 questions
             - correct_answer is always one of: A, B, C, or D
             - Questions are varied and comprehensive
-            - All options are plausible but only one is correct`
-          },
-          {
-            role: 'user',
-            content: `Create a quiz about: ${topic}`
-          }
-        ],
-        max_tokens: 4000,
-        temperature: 0.7,
+            - All options are plausible but only one is correct
+            
+            Create a quiz about: ${topic}`
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 4000,
+        }
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+      throw new Error(`Gemini API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const content = data.choices[0].message.content;
+    const content = data.candidates[0].content.parts[0].text;
     
-    console.log('OpenAI response:', content);
+    console.log('Gemini response:', content);
 
     let quizData;
     try {
       quizData = JSON.parse(content);
     } catch (parseError) {
-      console.error('Failed to parse OpenAI response:', content);
+      console.error('Failed to parse Gemini response:', content);
       throw new Error('Failed to parse AI response');
     }
 

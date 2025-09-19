@@ -133,7 +133,7 @@ export default function Quizzes() {
       }
 
       // Call AI generation edge function
-      const response = await fetch('/supabase/functions/v1/generate-quiz', {
+      const response = await fetch(`https://khwpljqvkuzftvxdervq.supabase.co/functions/v1/generate-quiz`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
