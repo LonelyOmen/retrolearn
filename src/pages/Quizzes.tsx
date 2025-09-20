@@ -511,13 +511,7 @@ export default function Quizzes() {
 
           <TabsContent value="do-quizzes" className="space-y-6">
             <Tabs defaultValue="public" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="public" className="font-retro">
-                  <Globe className="w-4 h-4 mr-2" />
-                  PUBLIC QUIZZES
-                </TabsTrigger>
-                
-              </TabsList>
+              
 
               <TabsContent value="public" className="space-y-4">
                 <div className="relative">
