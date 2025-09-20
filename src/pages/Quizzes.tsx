@@ -516,10 +516,7 @@ export default function Quizzes() {
                   <Globe className="w-4 h-4 mr-2" />
                   PUBLIC QUIZZES
                 </TabsTrigger>
-                <TabsTrigger value="private" className="font-retro">
-                  <Lock className="w-4 h-4 mr-2" />
-                  MY PRIVATE QUIZZES
-                </TabsTrigger>
+                
               </TabsList>
 
               <TabsContent value="public" className="space-y-4">
