@@ -457,30 +457,22 @@ export default function Quizzes() {
                 {newlyCreatedQuiz.title}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 mx-0 px-0 my-0">
               <div className="text-center space-y-4">
                 <p className="font-retro text-muted-foreground">
                   Your AI-generated quiz is ready! What would you like to do?
                 </p>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <Button onClick={() => startQuiz(newlyCreatedQuiz)} className="font-retro bg-primary hover:bg-primary/80">
+              <div className="grid gap-4 md:grid-cols-2 my-[12px] mx-[11px] px-[38px] py-[9px]">
+                <Button onClick={() => startQuiz(newlyCreatedQuiz)} className="font-retro bg-primary hover:bg-primary/80 py-0 my-px px-[240px] mx-[40px]">
                   <Eye className="w-4 h-4 mr-2" />
                   VIEW & TEST QUIZ
                 </Button>
-                <Button onClick={() => makeQuizPublic(newlyCreatedQuiz.id)} variant="outline" className="font-retro">
-                  <Globe className="w-4 h-4 mr-2" />
-                  MAKE PUBLIC
-                </Button>
+                
               </div>
 
-              <div className="flex justify-center">
-                <Button onClick={keepQuizPrivate} variant="ghost" className="font-retro text-muted-foreground">
-                  <Lock className="w-4 h-4 mr-2" />
-                  Keep Private
-                </Button>
-              </div>
+              
             </CardContent>
           </Card>
         </div>
