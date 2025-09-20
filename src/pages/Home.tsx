@@ -245,8 +245,7 @@ export default function Home() {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {/* Retro Note Wizard */}
-            <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-primary bg-card scanlines cursor-pointer"
-                  onClick={() => navigate('/note-wizard')}>
+            <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-primary bg-card scanlines">
               <CardHeader className="text-center pb-4">
                 <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
                   <Wand2 className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
@@ -262,7 +261,10 @@ export default function Home() {
                 <Button 
                   className="font-retro group-hover:bg-primary/20 transition-colors" 
                   variant="outline"
-                  onClick={() => navigate('/note-wizard')}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate('/note-wizard');
+                  }}
                 >
                   <Sparkles className="w-4 h-4 mr-2" />
                   START TRANSFORMING
@@ -272,8 +274,7 @@ export default function Home() {
             </Card>
 
             {/* My Notes */}
-            <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-secondary bg-card scanlines cursor-pointer"
-                  onClick={() => navigate('/notes')}>
+            <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-secondary bg-card scanlines">
               <CardHeader className="text-center pb-4">
                 <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-secondary/10 group-hover:bg-secondary/20 transition-colors">
                   <FileText className="w-8 h-8 text-secondary group-hover:scale-110 transition-transform" />
@@ -286,7 +287,14 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button className="font-retro group-hover:bg-secondary/20 transition-colors" variant="outline">
+                <Button 
+                  className="font-retro group-hover:bg-secondary/20 transition-colors" 
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate('/notes');
+                  }}
+                >
                   <FileText className="w-4 h-4 mr-2" />
                   VIEW NOTES
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -295,8 +303,7 @@ export default function Home() {
             </Card>
 
             {/* Work Rooms */}
-            <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-accent bg-card scanlines cursor-pointer"
-                  onClick={() => navigate('/workrooms')}>
+            <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-accent bg-card scanlines">
               <CardHeader className="text-center pb-4">
                 <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-accent/10 group-hover:bg-accent/20 transition-colors">
                   <Users className="w-8 h-8 text-accent group-hover:scale-110 transition-transform" />
@@ -309,7 +316,14 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button className="font-retro group-hover:bg-accent/20 transition-colors" variant="outline">
+                <Button 
+                  className="font-retro group-hover:bg-accent/20 transition-colors" 
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate('/workrooms');
+                  }}
+                >
                   <Users className="w-4 h-4 mr-2" />
                   JOIN ROOMS
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -318,8 +332,7 @@ export default function Home() {
             </Card>
 
             {/* Quizzes */}
-            <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-warning bg-card scanlines cursor-pointer"
-                  onClick={() => navigate('/quizzes')}>
+            <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-warning bg-card scanlines">
               <CardHeader className="text-center pb-4">
                 <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-warning/10 group-hover:bg-warning/20 transition-colors">
                   <Trophy className="w-8 h-8 text-warning group-hover:scale-110 transition-transform" />
@@ -332,7 +345,14 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button className="font-retro group-hover:bg-warning/20 transition-colors" variant="outline">
+                <Button 
+                  className="font-retro group-hover:bg-warning/20 transition-colors" 
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate('/quizzes');
+                  }}
+                >
                   <Trophy className="w-4 h-4 mr-2" />
                   START QUIZ
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />

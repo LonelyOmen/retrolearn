@@ -202,6 +202,7 @@ export type Database = {
           description: string | null
           id: string
           is_public: boolean
+          just_created: boolean | null
           title: string
           updated_at: string
         }
@@ -211,6 +212,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_public?: boolean
+          just_created?: boolean | null
           title: string
           updated_at?: string
         }
@@ -220,6 +222,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_public?: boolean
+          just_created?: boolean | null
           title?: string
           updated_at?: string
         }
