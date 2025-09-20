@@ -1,98 +1,68 @@
-import { useAuth } from '@/hooks/useAuth'
-import { useNavigate } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { supabase } from '@/integrations/supabase/client'
-import { useToast } from '@/hooks/use-toast'
-import { useState, useEffect } from 'react'
-import mascotImage from '@/assets/retro-wizard-mascot.jpg'
-import { 
-  Sparkles, 
-  Brain, 
-  FileText, 
-  Users, 
-  Wand2, 
-  User, 
-  LogOut, 
-  Mail, 
-  Calendar, 
-  Hash,
-  ArrowRight,
-  Zap,
-  Trophy
-} from 'lucide-react'
-import { AuthModal } from '@/components/AuthModal'
-
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from 'react';
+import mascotImage from '@/assets/retro-wizard-mascot.jpg';
+import { Sparkles, Brain, FileText, Users, Wand2, User, LogOut, Mail, Calendar, Hash, ArrowRight, Zap, Trophy } from 'lucide-react';
+import { AuthModal } from '@/components/AuthModal';
 export default function Home() {
-  const [showAuthModal, setShowAuthModal] = useState(false)
-  const [userProfile, setUserProfile] = useState<any>(null)
-  const [userStats, setUserStats] = useState<any>(null)
-  const { user, signOut, loading } = useAuth()
-  const { toast } = useToast()
-  const navigate = useNavigate()
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userStats, setUserStats] = useState<any>(null);
+  const {
+    user,
+    signOut,
+    loading
+  } = useAuth();
+  const {
+    toast
+  } = useToast();
+  const navigate = useNavigate();
 
   // Fetch user profile and stats
   useEffect(() => {
     if (user) {
-      fetchUserProfile()
-      fetchUserStats()
+      fetchUserProfile();
+      fetchUserStats();
     }
-  }, [user])
-
+  }, [user]);
   const fetchUserProfile = async () => {
-    if (!user) return
-    
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-    
-    setUserProfile(data)
-  }
-
+    if (!user) return;
+    const {
+      data
+    } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    setUserProfile(data);
+  };
   const fetchUserStats = async () => {
-    if (!user) return
-
-    const [notesResult, sessionsResult] = await Promise.all([
-      supabase
-        .from('notes')
-        .select('id, created_at')
-        .eq('user_id', user.id),
-      supabase
-        .from('study_sessions')
-        .select('id, created_at')
-        .eq('user_id', user.id)
-    ])
-
+    if (!user) return;
+    const [notesResult, sessionsResult] = await Promise.all([supabase.from('notes').select('id, created_at').eq('user_id', user.id), supabase.from('study_sessions').select('id, created_at').eq('user_id', user.id)]);
     setUserStats({
       totalNotes: notesResult.data?.length || 0,
       totalSessions: sessionsResult.data?.length || 0,
       joinedDate: user.created_at
-    })
-  }
-
+    });
+  };
   const getUserDisplayName = () => {
     if (userProfile?.full_name) {
-      return userProfile.full_name
+      return userProfile.full_name;
     }
     if (user?.email) {
-      return user.email.split('@')[0]
+      return user.email.split('@')[0];
     }
-    return 'User'
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-terminal p-4 scanlines">
+    return 'User';
+  };
+  return <div className="min-h-screen bg-gradient-terminal p-4 scanlines">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
         <header className="text-center py-8 relative">
           {/* Auth Section */}
           <div className="absolute top-0 right-0">
-            {user ? (
-              <div className="flex items-center gap-2">
+            {user ? <div className="flex items-center gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="ghost" className="font-retro text-sm text-muted-foreground hover:text-primary p-0 h-auto">
@@ -118,8 +88,7 @@ export default function Home() {
                             <Mail className="w-4 h-4 text-secondary" />
                             <span className="font-retro text-muted-foreground">{user.email}</span>
                           </div>
-                          {userStats && (
-                            <>
+                          {userStats && <>
                               <div className="flex items-center gap-2 text-sm">
                                 <Hash className="w-4 h-4 text-accent" />
                                 <span className="font-retro text-muted-foreground">
@@ -138,8 +107,7 @@ export default function Home() {
                                   Joined {new Date(userStats.joinedDate).toLocaleDateString()}
                                 </span>
                               </div>
-                            </>
-                          )}
+                            </>}
                         </div>
                         <div className="flex gap-2">
                           <Badge variant="secondary" className="font-retro text-xs">
@@ -150,38 +118,20 @@ export default function Home() {
                     </Card>
                   </PopoverContent>
                 </Popover>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={signOut}
-                  className="font-retro"
-                >
+                <Button variant="ghost" size="sm" onClick={signOut} className="font-retro">
                   <LogOut className="w-4 h-4 mr-1" />
                   LOGOUT
                 </Button>
-              </div>
-            ) : (
-              <Button
-                variant="neon"
-                size="sm"
-                onClick={() => setShowAuthModal(true)}
-                className="font-retro"
-                disabled={loading}
-              >
+              </div> : <Button variant="neon" size="sm" onClick={() => setShowAuthModal(true)} className="font-retro" disabled={loading}>
                 <User className="w-4 h-4 mr-1" />
                 LOGIN
-              </Button>
-            )}
+              </Button>}
           </div>
 
           {/* Main Header */}
           <div className="flex items-center justify-center gap-6 mb-6">
             <div className="relative">
-              <img 
-                src={mascotImage} 
-                alt="Retro Learn Mascot" 
-                className="w-24 h-24 rounded-full border-4 border-primary shadow-neon"
-              />
+              <img src={mascotImage} alt="Retro Learn Mascot" className="w-24 h-24 rounded-full border-4 border-primary shadow-neon" />
               <div className="absolute -top-2 -right-2">
                 <Sparkles className="w-8 h-8 text-accent animate-pulse" />
               </div>
@@ -223,8 +173,7 @@ export default function Home() {
         </div>
 
         {/* Feature Cards */}
-        {!user ? (
-          <div className="text-center py-12 bg-card border-2 border-primary scanlines">
+        {!user ? <div className="text-center py-12 bg-card border-2 border-primary scanlines">
             <User className="w-16 h-16 mx-auto mb-4 text-primary" />
             <h2 className="text-2xl font-retro font-bold glow-text mb-2">
               ACCESS REQUIRED
@@ -232,40 +181,27 @@ export default function Home() {
             <p className="font-retro text-muted-foreground mb-6 max-w-md mx-auto">
               Sign in to access all Retro Learn features and start your learning journey
             </p>
-            <Button
-              variant="neon"
-              onClick={() => setShowAuthModal(true)}
-              className="font-retro"
-              disabled={loading}
-            >
+            <Button variant="neon" onClick={() => setShowAuthModal(true)} className="font-retro" disabled={loading}>
               <User className="w-4 h-4 mr-2" />
               SIGN IN TO CONTINUE
             </Button>
-          </div>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          </div> : <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {/* Retro Note Wizard */}
             <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-primary bg-card scanlines">
               <CardHeader className="text-center pb-4">
                 <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
                   <Wand2 className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
                 </div>
-                <CardTitle className="font-retro text-xl glow-text group-hover:glow-pink transition-all">
-                  RETRO NOTE WIZARD
-                </CardTitle>
+                <CardTitle className="font-retro text-xl glow-text group-hover:glow-pink transition-all">RETRNOTE WIZARD</CardTitle>
                 <CardDescription className="font-retro text-muted-foreground">
                   Transform your messy notes into organized study materials with AI magic
                 </CardDescription>
               </CardHeader>
-              <CardContent className="text-center">
-                <Button 
-                  className="font-retro group-hover:bg-primary/20 transition-colors" 
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate('/note-wizard');
-                  }}
-                >
+              <CardContent className="text-center mx-px px-0">
+                <Button variant="outline" onClick={e => {
+              e.stopPropagation();
+              navigate('/note-wizard');
+            }} className="font-retro group-hover:bg-primary/20 transition-colors my-0 py-0 mx-0 px-0">
                   <Sparkles className="w-4 h-4 mr-2" />
                   START TRANSFORMING
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -287,14 +223,10 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button 
-                  className="font-retro group-hover:bg-secondary/20 transition-colors" 
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate('/notes');
-                  }}
-                >
+                <Button className="font-retro group-hover:bg-secondary/20 transition-colors" variant="outline" onClick={e => {
+              e.stopPropagation();
+              navigate('/notes');
+            }}>
                   <FileText className="w-4 h-4 mr-2" />
                   VIEW NOTES
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -316,14 +248,10 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button 
-                  className="font-retro group-hover:bg-accent/20 transition-colors" 
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate('/workrooms');
-                  }}
-                >
+                <Button className="font-retro group-hover:bg-accent/20 transition-colors" variant="outline" onClick={e => {
+              e.stopPropagation();
+              navigate('/workrooms');
+            }}>
                   <Users className="w-4 h-4 mr-2" />
                   JOIN ROOMS
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -345,22 +273,17 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button 
-                  className="font-retro group-hover:bg-warning/20 transition-colors" 
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate('/quizzes');
-                  }}
-                >
+                <Button className="font-retro group-hover:bg-warning/20 transition-colors" variant="outline" onClick={e => {
+              e.stopPropagation();
+              navigate('/quizzes');
+            }}>
                   <Trophy className="w-4 h-4 mr-2" />
                   START QUIZ
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </CardContent>
             </Card>
-          </div>
-        )}
+          </div>}
 
         {/* Footer */}
         <footer className="text-center pt-8 border-t border-primary">
@@ -377,11 +300,7 @@ export default function Home() {
         </footer>
 
         {/* Auth Modal */}
-        <AuthModal 
-          isOpen={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
-        />
+        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       </div>
-    </div>
-  )
+    </div>;
 }
