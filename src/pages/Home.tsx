@@ -192,7 +192,7 @@ export default function Home() {
                 <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
                   <Wand2 className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
                 </div>
-                <CardTitle className="font-retro text-xl glow-text group-hover:glow-pink transition-all">RETRNOTE WIZARD</CardTitle>
+                <CardTitle className="font-retro text-xl glow-text group-hover:glow-pink transition-all">NOTE WIZARD</CardTitle>
                 <CardDescription className="font-retro text-muted-foreground">
                   Transform your messy notes into organized study materials with AI magic
                 </CardDescription>
