@@ -353,7 +353,7 @@ Create 8 progressive learning steps that are specific to ${topic}. Each step sho
       }
     );
 
-    // Fetch Wikipedia articles using official Wikipedia API
+    // Fetch Wikipedia articles using official Wikipedia API with improved relevance
     interface WikipediaArticle {
       title: string;
       url: string;
@@ -365,83 +365,149 @@ Create 8 progressive learning steps that are specific to ${topic}. Each step sho
     try {
       console.log('Searching Wikipedia articles...');
       
-      // Search for articles related to the topic
-      const searchResponse = await fetch(
-        `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(topic)}&format=json&srlimit=5&origin=*`
-      );
+      // Create more specific search terms for better relevance
+      const searchTerms = [
+        topic,
+        `${topic} techniques`,
+        `${topic} fundamentals`,
+        `${topic} tutorial`
+      ];
+      
+      const allResults: any[] = [];
+      
+      // Search with multiple specific terms
+      for (const searchTerm of searchTerms) {
+        try {
+          const searchResponse = await fetch(
+            `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchTerm)}&format=json&srlimit=3&origin=*`
+          );
 
-      if (searchResponse.ok) {
-        const searchData = await searchResponse.json();
-        const searchResults = searchData.query?.search || [];
-        
-        console.log(`Found ${searchResults.length} search results`);
-        
-        // Get summaries for each article
-        for (const result of searchResults.slice(0, 4)) {
-          try {
-            const summaryResponse = await fetch(
-              `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&titles=${encodeURIComponent(result.title)}&format=json&origin=*`
-            );
+          if (searchResponse.ok) {
+            const searchData = await searchResponse.json();
+            const searchResults = searchData.query?.search || [];
             
-            if (summaryResponse.ok) {
-              const summaryData = await summaryResponse.json();
-              const pages = summaryData.query?.pages || {};
-              const pageId = Object.keys(pages)[0];
-              const page = pages[pageId];
+            // Filter out irrelevant results (movies, TV shows, specific products unless the topic is about them)
+            const filteredResults = searchResults.filter((result: any) => {
+              const title = result.title.toLowerCase();
+              const snippet = result.snippet.toLowerCase();
+              const topicLower = topic.toLowerCase();
               
-              if (page && page.extract) {
-                // Clean up the extract (remove HTML tags and limit length)
-                let cleanExtract = page.extract.replace(/<[^>]*>/g, '');
-                if (cleanExtract.length > 200) {
-                  cleanExtract = cleanExtract.substring(0, 200) + '...';
-                }
-                
-                wikipediaArticles.push({
-                  title: result.title,
-                  url: `https://en.wikipedia.org/wiki/${encodeURIComponent(result.title.replace(/ /g, '_'))}`,
-                  description: cleanExtract || result.snippet || `Wikipedia article about ${result.title}`,
-                  thumbnail: null
-                });
+              // Exclude specific movies, TV shows, games unless the topic is specifically about entertainment
+              const isEntertainmentSpecific = title.includes('(film)') || 
+                                            title.includes('(movie)') || 
+                                            title.includes('(tv series)') || 
+                                            title.includes('(video game)') ||
+                                            title.includes('(album)') ||
+                                            title.includes('(song)');
+              
+              const isTopicAboutEntertainment = topicLower.includes('film') || 
+                                              topicLower.includes('movie') || 
+                                              topicLower.includes('cinema') ||
+                                              topicLower.includes('entertainment');
+              
+              // If it's entertainment-specific content, only include if the topic is about entertainment
+              if (isEntertainmentSpecific && !isTopicAboutEntertainment) {
+                return false;
               }
-            }
-          } catch (summaryError) {
-            console.error(`Error fetching summary for ${result.title}:`, summaryError);
-            // Add without summary if summary fetch fails
-            wikipediaArticles.push({
-              title: result.title,
-              url: `https://en.wikipedia.org/wiki/${encodeURIComponent(result.title.replace(/ /g, '_'))}`,
-              description: result.snippet || `Wikipedia article about ${result.title}`,
-              thumbnail: null
+              
+              // Prefer educational, technical, or general concept articles
+              const isEducational = snippet.includes('technique') || 
+                                   snippet.includes('method') || 
+                                   snippet.includes('process') ||
+                                   snippet.includes('study') ||
+                                   snippet.includes('field') ||
+                                   snippet.includes('discipline') ||
+                                   title.toLowerCase().includes(topicLower);
+              
+              return isEducational || !isEntertainmentSpecific;
             });
+            
+            allResults.push(...filteredResults);
           }
+        } catch (searchError) {
+          console.error(`Error searching for term "${searchTerm}":`, searchError);
         }
-        
-        console.log(`Successfully fetched ${wikipediaArticles.length} Wikipedia articles with summaries`);
       }
+      
+      // Remove duplicates and prioritize by relevance
+      const uniqueResults = allResults.filter((result, index, self) => 
+        index === self.findIndex(r => r.title === result.title)
+      );
+      
+      // Sort by relevance (title similarity to topic gets priority)
+      const sortedResults = uniqueResults.sort((a, b) => {
+        const aRelevance = a.title.toLowerCase().includes(topic.toLowerCase()) ? 1 : 0;
+        const bRelevance = b.title.toLowerCase().includes(topic.toLowerCase()) ? 1 : 0;
+        return bRelevance - aRelevance;
+      });
+      
+      console.log(`Found ${sortedResults.length} filtered search results`);
+      
+      // Get summaries for top results
+      for (const result of sortedResults.slice(0, 4)) {
+        try {
+          const summaryResponse = await fetch(
+            `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&titles=${encodeURIComponent(result.title)}&format=json&origin=*`
+          );
+          
+          if (summaryResponse.ok) {
+            const summaryData = await summaryResponse.json();
+            const pages = summaryData.query?.pages || {};
+            const pageId = Object.keys(pages)[0];
+            const page = pages[pageId];
+            
+            if (page && page.extract) {
+              // Clean up the extract (remove HTML tags and limit length)
+              let cleanExtract = page.extract.replace(/<[^>]*>/g, '');
+              if (cleanExtract.length > 200) {
+                cleanExtract = cleanExtract.substring(0, 200) + '...';
+              }
+              
+              wikipediaArticles.push({
+                title: result.title,
+                url: `https://en.wikipedia.org/wiki/${encodeURIComponent(result.title.replace(/ /g, '_'))}`,
+                description: cleanExtract || result.snippet || `Wikipedia article about ${result.title}`,
+                thumbnail: null
+              });
+            }
+          }
+        } catch (summaryError) {
+          console.error(`Error fetching summary for ${result.title}:`, summaryError);
+          // Add without summary if summary fetch fails
+          wikipediaArticles.push({
+            title: result.title,
+            url: `https://en.wikipedia.org/wiki/${encodeURIComponent(result.title.replace(/ /g, '_'))}`,
+            description: result.snippet || `Wikipedia article about ${result.title}`,
+            thumbnail: null
+          });
+        }
+      }
+      
+      console.log(`Successfully fetched ${wikipediaArticles.length} relevant Wikipedia articles`);
     } catch (error) {
       console.error('Wikipedia API error:', error);
     }
 
-    // Fallback articles if API fails
+    // Improved fallback articles if API fails
     if (wikipediaArticles.length === 0) {
-      console.log('Using fallback Wikipedia articles');
+      console.log('Using improved fallback Wikipedia articles');
       wikipediaArticles = [
         {
           title: topic,
           url: `https://en.wikipedia.org/wiki/${encodeURIComponent(topic.replace(/ /g, '_'))}`,
-          description: `Learn more about ${topic} on Wikipedia`,
+          description: `Comprehensive Wikipedia article about ${topic}`,
+          thumbnail: null
+        },
+        {
+          title: `${topic.split(' ')[0]}`, // First word of topic
+          url: `https://en.wikipedia.org/wiki/${encodeURIComponent(topic.split(' ')[0])}`,
+          description: `Learn about ${topic.split(' ')[0]} fundamentals`,
           thumbnail: null
         },
         {
           title: "Learning",
           url: "https://en.wikipedia.org/wiki/Learning",
           description: "Process of acquiring new understanding, knowledge, behaviors, and skills",
-          thumbnail: null
-        },
-        {
-          title: "Education",
-          url: "https://en.wikipedia.org/wiki/Education",
-          description: "Process of facilitating learning and acquisition of knowledge and skills",
           thumbnail: null
         }
       ];
