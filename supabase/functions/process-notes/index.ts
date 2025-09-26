@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+const geminiApiKeySecondary = Deno.env.get('GEMINI_API_KEY_SECONDARY');
 const tavilyApiKey = Deno.env.get('TAVILY_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -149,66 +150,59 @@ ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze th
       });
     }
     
-    const studyResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${geminiApiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: contentParts
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 4000,
-        }
-      }),
-    });
+    // Helper to call Gemini with a specific key/model
+    const callGemini = async (apiKey: string, model: string) => {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: contentParts }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 4000 }
+        })
+      });
+      const data = await res.json();
+      return { res, data } as const;
+    };
 
-    const studyData = await studyResponse.json();
+    // Try primary key with Pro model
+    let { res: studyResponse, data: studyData } = await callGemini(geminiApiKey!, 'gemini-1.5-pro-latest');
     console.log('Study response status:', studyResponse.status);
     console.log('Study response data:', studyData);
-    
+
     if (!studyResponse.ok) {
-      console.error('Gemini API error:', studyData);
       const status = studyResponse.status;
       const errMsg: string = studyData.error?.message || 'Unknown error';
+      console.error('Gemini API error:', { status, errMsg });
 
-      // Attempt fallback to a cheaper model if quota or permission issues
-      const shouldFallback = status === 429 || /quota|insufficient|exceed/i.test(errMsg);
-      if (shouldFallback) {
+      const quotaLike = status === 429 || /quota|insufficient|exceed|rate/i.test(errMsg);
+
+      // If quota on primary, try secondary key on Pro
+      if (quotaLike && geminiApiKeySecondary) {
+        console.log('Trying secondary key on gemini-1.5-pro-latest');
+        const retry = await callGemini(geminiApiKeySecondary, 'gemini-1.5-pro-latest');
+        studyResponse = retry.res; studyData = retry.data;
+        console.log('Secondary key status:', studyResponse.status);
+      }
+
+      // If still not OK, try Flash model (prefer secondary if quota-like and available)
+      if (!studyResponse.ok) {
+        const keyForFlash = quotaLike && geminiApiKeySecondary ? geminiApiKeySecondary : geminiApiKey!;
         console.log('Attempting fallback to gemini-1.5-flash-latest');
-        const fallbackRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${geminiApiKey}` , {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: contentParts
-            }],
-            generationConfig: { temperature: 0.7, maxOutputTokens: 3500 }
-          })
-        });
-        const fbData = await fallbackRes.json();
-        console.log('Fallback status:', fallbackRes.status);
-        if (fallbackRes.ok && fbData.candidates && fbData.candidates[0]?.content?.parts?.[0]?.text) {
-          // Overwrite studyData to reuse parsing logic below
-          (studyData as any).candidates = fbData.candidates;
+        const fb = await callGemini(keyForFlash, 'gemini-1.5-flash-latest');
+        if (fb.res.ok && fb.data.candidates && fb.data.candidates[0]?.content?.parts?.[0]?.text) {
+          studyData = fb.data;
         } else {
-          // Update note status and return error with accurate status code
           try {
             const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
             await supabase.from('notes').update({ processing_status: 'error' }).eq('id', noteId);
           } catch (_) {}
-          const fbMsg = fbData.error?.message || errMsg;
-          return new Response(JSON.stringify({ success: false, error: `Gemini quota/limit error: ${fbMsg}`, code: 'GEMINI_QUOTA' }), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          const fbMsg = fb.data?.error?.message || errMsg;
+          const finalStatus = fb.res.status || status;
+          return new Response(
+            JSON.stringify({ success: false, error: `Gemini error: ${fbMsg}`, provider_status: finalStatus, code: quotaLike ? 'GEMINI_QUOTA' : 'GEMINI_ERROR' }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
-      } else {
-        // Non-fallback-able error: return with provider status
-        try {
-          const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
-          await supabase.from('notes').update({ processing_status: 'error' }).eq('id', noteId);
-        } catch (_) {}
-        return new Response(JSON.stringify({ success: false, error: `Gemini API error: ${errMsg}` }), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
     }
     
