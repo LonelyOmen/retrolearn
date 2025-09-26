@@ -55,6 +55,10 @@ interface SavedLearningProgress {
   is_completed: boolean;
   overview?: string;
   tips?: any; // Using any for Json type from database
+  videos?: any; // Using any for Json type from database
+  communities?: any; // Using any for Json type from database
+  articles?: any; // Using any for Json type from database
+  images?: any; // Using any for Json type from database
   created_at: string;
   updated_at: string;
 }
@@ -229,7 +233,7 @@ const Learn = () => {
         .select('id')
         .eq('user_id', user.id)
         .eq('topic', topic)
-        .single();
+        .maybeSingle();
 
       if (existingProgress) {
         // Update existing progress
@@ -243,6 +247,10 @@ const Learn = () => {
             is_completed: isCompleted,
             overview: result.overview,
             tips: result.tips,
+            videos: result.videos || [],
+            communities: result.communities || [],
+            articles: result.wikipediaArticles || [],
+            images: result.images || [],
             updated_at: new Date().toISOString()
           })
           .eq('id', existingProgress.id);
@@ -261,7 +269,11 @@ const Learn = () => {
             completed_steps: completedSteps,
             is_completed: isCompleted,
             overview: result.overview,
-            tips: result.tips
+            tips: result.tips,
+            videos: result.videos || [],
+            communities: result.communities || [],
+            articles: result.wikipediaArticles || [],
+            images: result.images || []
           });
 
         if (error) throw error;
@@ -306,15 +318,15 @@ const Learn = () => {
     setTopic(savedProgress.topic);
     setLearningSteps(savedProgress.learning_steps);
     
-    // Create result object from saved data
+    // Create result object from saved data with all resources
     const restoredResult: LearnResult = {
       overview: savedProgress.overview || `Continue learning about ${savedProgress.topic}`,
       tips: Array.isArray(savedProgress.tips) ? savedProgress.tips : [],
       learningSteps: savedProgress.learning_steps,
-      videos: [],
-      images: [],
-      communities: [],
-      wikipediaArticles: []
+      videos: Array.isArray(savedProgress.videos) ? savedProgress.videos : [],
+      images: Array.isArray(savedProgress.images) ? savedProgress.images : [],
+      communities: Array.isArray(savedProgress.communities) ? savedProgress.communities : [],
+      wikipediaArticles: Array.isArray(savedProgress.articles) ? savedProgress.articles : []
     };
     
     setResult(restoredResult);

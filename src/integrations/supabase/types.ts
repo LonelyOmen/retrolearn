@@ -16,9 +16,12 @@ export type Database = {
     Tables: {
       learning_progress: {
         Row: {
+          articles: Json | null
+          communities: Json | null
           completed_steps: number
           created_at: string
           id: string
+          images: Json | null
           is_completed: boolean
           learning_steps: Json
           overview: string | null
@@ -28,11 +31,15 @@ export type Database = {
           total_steps: number
           updated_at: string
           user_id: string
+          videos: Json | null
         }
         Insert: {
+          articles?: Json | null
+          communities?: Json | null
           completed_steps?: number
           created_at?: string
           id?: string
+          images?: Json | null
           is_completed?: boolean
           learning_steps?: Json
           overview?: string | null
@@ -42,11 +49,15 @@ export type Database = {
           total_steps?: number
           updated_at?: string
           user_id: string
+          videos?: Json | null
         }
         Update: {
+          articles?: Json | null
+          communities?: Json | null
           completed_steps?: number
           created_at?: string
           id?: string
+          images?: Json | null
           is_completed?: boolean
           learning_steps?: Json
           overview?: string | null
@@ -56,6 +67,7 @@ export type Database = {
           total_steps?: number
           updated_at?: string
           user_id?: string
+          videos?: Json | null
         }
         Relationships: []
       }
