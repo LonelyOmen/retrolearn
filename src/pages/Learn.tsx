@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Search, Loader2, ExternalLink, Users, Video, Image, Sparkles, Play, X } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { ArrowLeft, Search, Loader2, ExternalLink, Users, Video, Image, Sparkles, Play, X, Plus, Trash2, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -18,6 +19,12 @@ interface LearnResult {
     description: string;
   }>;
   tips: string[];
+  learningSteps: Array<{
+    id: string;
+    title: string;
+    description: string;
+    completed: boolean;
+  }>;
   images: Array<{
     title: string;
     url: string;
@@ -47,6 +54,9 @@ const Learn = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<LearnResult | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<{ title: string; url: string; } | null>(null);
+  const [learningSteps, setLearningSteps] = useState<LearnResult['learningSteps']>([]);
+  const [newStepTitle, setNewStepTitle] = useState("");
+  const [showCongratulations, setShowCongratulations] = useState(false);
   const { toast } = useToast();
 
   // Extract YouTube video ID from URL
@@ -82,6 +92,7 @@ const Learn = () => {
       if (error) throw error;
 
       setResult(data);
+      setLearningSteps(data.learningSteps || []);
       if (!searchTopic) {
         setTopic(searchQuery);
       }
@@ -109,7 +120,48 @@ const Learn = () => {
   const resetSearch = () => {
     setResult(null);
     setTopic("");
+    setLearningSteps([]);
+    setShowCongratulations(false);
   };
+
+  const toggleStepComplete = (stepId: string) => {
+    const updatedSteps = learningSteps.map(step => 
+      step.id === stepId ? { ...step, completed: !step.completed } : step
+    );
+    setLearningSteps(updatedSteps);
+    
+    // Check if all steps are completed
+    const completedSteps = updatedSteps.filter(step => step.completed).length;
+    if (completedSteps === updatedSteps.length && updatedSteps.length > 0 && !showCongratulations) {
+      setShowCongratulations(true);
+      toast({
+        title: "🎉 Congratulations!",
+        description: `You've completed your learning journey for "${topic}"! Keep exploring new topics!`,
+      });
+    }
+  };
+
+  const addStep = () => {
+    if (!newStepTitle.trim()) return;
+    
+    const newStep = {
+      id: `step-${Date.now()}`,
+      title: newStepTitle.trim(),
+      description: "Custom learning step",
+      completed: false
+    };
+    
+    setLearningSteps([...learningSteps, newStep]);
+    setNewStepTitle("");
+  };
+
+  const removeStep = (stepId: string) => {
+    setLearningSteps(learningSteps.filter(step => step.id !== stepId));
+  };
+
+  const progressPercentage = learningSteps.length > 0 
+    ? (learningSteps.filter(step => step.completed).length / learningSteps.length) * 100 
+    : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -246,25 +298,75 @@ const Learn = () => {
                     </CardContent>
                   </Card>
 
-                  {/* Learning Tips */}
+                  {/* Learning Progress */}
                   <Card className="border-primary/20 animate-fade-in bg-background/50 backdrop-blur-sm" style={{ animationDelay: "200ms" }}>
                     <CardHeader className="pb-4">
                       <CardTitle className="glow-text text-2xl flex items-center gap-3">
-                        <div className="w-6 h-6 text-primary">💡</div>
-                        Learning Tips
+                        <div className="w-6 h-6 text-primary">📈</div>
+                        Learning Progress
+                        {showCongratulations && <div className="text-lg">🎉</div>}
                       </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      {result.tips.slice(3).map((tip, index) => (
-                        <div key={index + 3} className="space-y-3">
-                          <h4 className="text-lg font-semibold text-primary">
-                            {tip.split(':')[0] || `Tip ${index + 4}`}
-                          </h4>
-                          <p className="text-foreground/80 leading-relaxed">
-                            {tip.includes(':') ? tip.split(':').slice(1).join(':').trim() : tip}
-                          </p>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                          <span>Progress: {learningSteps.filter(step => step.completed).length} / {learningSteps.length} steps</span>
+                          <span>{Math.round(progressPercentage)}%</span>
                         </div>
-                      ))}
+                        <Progress value={progressPercentage} className="h-3" />
+                        {showCongratulations && (
+                          <div className="text-center py-4 space-y-2">
+                            <div className="text-2xl">🌟</div>
+                            <p className="text-primary font-semibold">Congratulations on completing your learning journey!</p>
+                            <p className="text-sm text-muted-foreground">You've mastered the fundamentals of {topic}</p>
+                          </div>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* Learning Steps */}
+                      <div className="space-y-3">
+                        {learningSteps.map((step, index) => (
+                          <div key={step.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted/20 transition-colors">
+                            <button
+                              onClick={() => toggleStepComplete(step.id)}
+                              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                                step.completed 
+                                  ? 'bg-primary border-primary text-primary-foreground' 
+                                  : 'border-muted-foreground hover:border-primary'
+                              }`}
+                            >
+                              {step.completed && <Check className="w-3 h-3" />}
+                            </button>
+                            <div className="flex-1 min-w-0">
+                              <h4 className={`font-medium text-sm mb-1 ${step.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                                {step.title}
+                              </h4>
+                              <p className={`text-xs leading-relaxed ${step.completed ? 'text-muted-foreground/70' : 'text-muted-foreground'}`}>
+                                {step.description}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => removeStep(step.id)}
+                              className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Add New Step */}
+                      <div className="flex gap-2 pt-4 border-t border-border/50">
+                        <Input
+                          placeholder="Add a learning step..."
+                          value={newStepTitle}
+                          onChange={(e) => setNewStepTitle(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && addStep()}
+                          className="text-sm"
+                        />
+                        <Button onClick={addStep} size="sm" variant="outline" className="gap-1">
+                          <Plus className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>

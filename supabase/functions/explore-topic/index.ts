@@ -32,7 +32,7 @@ serve(async (req) => {
     }
 
     // Generate overview and tips using Gemini
-    const geminiPrompt = `For the topic "${topic}", create an educational overview and learning tips.
+    const geminiPrompt = `For the topic "${topic}", create an educational overview, learning tips, and progressive learning steps.
 
 Response format (JSON only):
 {
@@ -43,10 +43,24 @@ Response format (JSON only):
     "Practical learning tip 3",
     "Practical learning tip 4",
     "Practical learning tip 5"
+  ],
+  "learningSteps": [
+    {
+      "id": "step-1",
+      "title": "Understanding the Basics",
+      "description": "Start with fundamental concepts and terminology",
+      "completed": false
+    },
+    {
+      "id": "step-2", 
+      "title": "Core Principles",
+      "description": "Learn the main principles and theories",
+      "completed": false
+    }
   ]
 }
 
-Return only valid JSON, no additional text or markdown.`;
+Create 7-10 progressive learning steps that build from beginner to advanced level. Each step should be specific and actionable. Return only valid JSON, no additional text or markdown.`;
 
     console.log('Calling Gemini API...');
     const geminiResponse = await fetch(
@@ -124,6 +138,15 @@ Return only valid JSON, no additional text or markdown.`;
           "Join communities and engage with other learners",
           "Use multiple resources to get different perspectives",
           "Be patient and persistent in your learning journey"
+        ],
+        learningSteps: [
+          { id: "step-1", title: "Foundation Knowledge", description: "Understand basic concepts and terminology", completed: false },
+          { id: "step-2", title: "Core Principles", description: "Learn fundamental principles and theories", completed: false },
+          { id: "step-3", title: "Practical Application", description: "Apply knowledge through exercises and practice", completed: false },
+          { id: "step-4", title: "Intermediate Concepts", description: "Explore more complex topics and relationships", completed: false },
+          { id: "step-5", title: "Advanced Techniques", description: "Master advanced methods and best practices", completed: false },
+          { id: "step-6", title: "Real-world Projects", description: "Work on practical projects and case studies", completed: false },
+          { id: "step-7", title: "Expert Level", description: "Develop expertise and share knowledge with others", completed: false }
         ]
       };
     }
@@ -285,6 +308,7 @@ Return only valid JSON, no additional text or markdown.`;
       overview: geminiResult.overview,
       videos: videos.slice(0, 4),
       tips: geminiResult.tips,
+      learningSteps: geminiResult.learningSteps || [],
       images: images.slice(0, 3),
       communities: communities.slice(0, 5)
     };
