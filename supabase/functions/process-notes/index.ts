@@ -141,9 +141,9 @@ ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze th
       console.log(`Including ${images.length} image(s) in processing...`);
       images.forEach((image: any) => {
         contentParts.push({
-          inlineData: {
+          inline_data: {
             data: image.data,
-            mimeType: image.mimeType
+            mime_type: image.mimeType
           }
         });
       });
