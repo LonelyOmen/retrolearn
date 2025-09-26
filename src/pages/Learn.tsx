@@ -196,127 +196,138 @@ const Learn = () => {
                 {/* Left Column - Overview and Tips */}
                 <div className="lg:col-span-2 space-y-8">
                   {/* Overview */}
-                  <Card className="border-primary/20 animate-fade-in">
-                    <CardHeader>
-                      <CardTitle className="glow-text text-2xl">Overview</CardTitle>
+                  <Card className="border-primary/20 animate-fade-in bg-background/50 backdrop-blur-sm">
+                    <CardHeader className="pb-4">
+                      <CardTitle className="glow-text text-2xl flex items-center gap-3">
+                        <div className="w-6 h-6 border-2 border-primary rounded flex items-center justify-center">
+                          <div className="w-2 h-2 bg-primary rounded"></div>
+                        </div>
+                        Overview
+                      </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <p className="text-foreground/90 leading-relaxed whitespace-pre-wrap text-lg">
+                    <CardContent className="space-y-6">
+                      <p className="text-foreground/90 leading-relaxed text-lg">
                         {result.overview}
                       </p>
+                      
+                      {/* Key Learning Points */}
+                      <div>
+                        <h3 className="text-xl font-semibold mb-4 text-foreground">Key Learning Points:</h3>
+                        <ul className="space-y-3">
+                          {result.tips.slice(0, 3).map((tip, index) => (
+                            <li key={index} className="flex items-start gap-3">
+                              <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0"></div>
+                              <span className="text-foreground/90 text-base leading-relaxed">{tip}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     </CardContent>
                   </Card>
 
-                  {/* Tips */}
-                  <Card className="border-primary/20 animate-fade-in" style={{ animationDelay: "200ms" }}>
-                    <CardHeader>
-                      <CardTitle className="glow-text text-2xl">Tips for Beginners</CardTitle>
+                  {/* Learning Tips */}
+                  <Card className="border-primary/20 animate-fade-in bg-background/50 backdrop-blur-sm" style={{ animationDelay: "200ms" }}>
+                    <CardHeader className="pb-4">
+                      <CardTitle className="glow-text text-2xl flex items-center gap-3">
+                        <div className="w-6 h-6 text-primary">💡</div>
+                        Learning Tips
+                      </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <ul className="space-y-4">
-                        {result.tips.map((tip, index) => (
-                          <li key={index} className="flex items-start gap-4">
-                            <Badge variant="outline" className="mt-1 min-w-fit text-lg px-3 py-1">
-                              {index + 1}
-                            </Badge>
-                            <span className="text-foreground/90 text-lg">{tip}</span>
-                          </li>
-                        ))}
-                      </ul>
+                    <CardContent className="space-y-6">
+                      {result.tips.slice(3).map((tip, index) => (
+                        <div key={index + 3} className="space-y-3">
+                          <h4 className="text-lg font-semibold text-primary">
+                            {tip.split(':')[0] || `Tip ${index + 4}`}
+                          </h4>
+                          <p className="text-foreground/80 leading-relaxed">
+                            {tip.includes(':') ? tip.split(':').slice(1).join(':').trim() : tip}
+                          </p>
+                        </div>
+                      ))}
                     </CardContent>
                   </Card>
                 </div>
 
-                {/* Right Column - Videos and Images */}
-                <div className="space-y-8">
-                  {/* Videos */}
-                  <Card className="border-primary/20 animate-fade-in" style={{ animationDelay: "400ms" }}>
-                    <CardHeader>
-                      <CardTitle className="glow-text flex items-center gap-2 text-xl">
-                        <Video className="h-6 w-6" />
-                        Related Videos
+                {/* Right Column - Videos */}
+                <div className="space-y-6">
+                  <Card className="border-primary/20 animate-fade-in bg-background/50 backdrop-blur-sm" style={{ animationDelay: "400ms" }}>
+                    <CardHeader className="pb-4">
+                      <CardTitle className="glow-text text-xl flex items-center gap-3">
+                        <Video className="h-5 w-5" />
+                        Recommended Videos
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
                         {result.videos.map((video, index) => (
-                          <div key={index} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                            <h4 className="font-medium text-primary mb-2 text-lg">{video.title}</h4>
-                            <p className="text-muted-foreground mb-3">{video.description}</p>
-                            <a 
-                              href={video.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
-                            >
-                              Watch Video <ExternalLink className="h-4 w-4" />
-                            </a>
-                          </div>
+                          <a 
+                            key={index}
+                            href={video.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="block group"
+                          >
+                            <div className="flex gap-3 p-3 rounded-lg hover:bg-muted/20 transition-colors">
+                              <div className="w-20 h-14 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:from-primary/30 group-hover:to-secondary/30 transition-colors">
+                                <Video className="w-6 h-6 text-primary" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-medium text-foreground text-sm leading-tight mb-1 line-clamp-2 group-hover:text-primary transition-colors">
+                                  {video.title}
+                                </h4>
+                                <p className="text-xs text-muted-foreground mb-1">
+                                  {video.description.split(' ').slice(0, 3).join(' ')}...
+                                </p>
+                                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                  <span>Educational Content</span>
+                                  <span className="bg-primary/20 px-2 py-1 rounded text-primary font-mono">
+                                    {Math.floor(Math.random() * 15) + 5}:{String(Math.floor(Math.random() * 60)).padStart(2, '0')}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </a>
                         ))}
                       </div>
                     </CardContent>
                   </Card>
 
-                  {/* Images */}
-                  <Card className="border-primary/20 animate-fade-in" style={{ animationDelay: "600ms" }}>
-                    <CardHeader>
-                      <CardTitle className="glow-text flex items-center gap-2 text-xl">
-                        <Image className="h-6 w-6" />
-                        Related Images
+                  {/* Additional Resources */}
+                  <Card className="border-primary/20 animate-fade-in bg-background/50 backdrop-blur-sm" style={{ animationDelay: "600ms" }}>
+                    <CardHeader className="pb-4">
+                      <CardTitle className="glow-text text-lg flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Communities
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
-                        {result.images.map((image, index) => (
-                          <div key={index} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                            <h4 className="font-medium text-primary mb-2 text-lg">{image.title}</h4>
-                            <p className="text-muted-foreground mb-3">{image.description}</p>
-                            <a 
-                              href={image.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
-                            >
-                              View Image <ExternalLink className="h-4 w-4" />
-                            </a>
-                          </div>
+                      <div className="space-y-3">
+                        {result.communities.slice(0, 3).map((community, index) => (
+                          <a 
+                            key={index}
+                            href={community.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="block group"
+                          >
+                            <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/20 transition-colors">
+                              <Badge variant="secondary" className="text-xs">
+                                {community.platform}
+                              </Badge>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">
+                                  {community.name}
+                                </p>
+                              </div>
+                              <ExternalLink className="h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors" />
+                            </div>
+                          </a>
                         ))}
                       </div>
                     </CardContent>
                   </Card>
                 </div>
               </div>
-
-              {/* Bottom Section - Community Support */}
-              <Card className="border-primary/20 mt-8 animate-fade-in" style={{ animationDelay: "800ms" }}>
-                <CardHeader>
-                  <CardTitle className="glow-text flex items-center gap-2 text-2xl">
-                    <Users className="h-6 w-6" />
-                    Community & Support
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {result.communities.map((community, index) => (
-                      <div key={index} className="border rounded-lg p-6 hover:bg-muted/50 transition-colors">
-                        <div className="flex items-center gap-3 mb-3">
-                          <Badge variant="secondary" className="text-sm px-3 py-1">{community.platform}</Badge>
-                          <h4 className="font-medium text-primary text-lg">{community.name}</h4>
-                        </div>
-                        <p className="text-muted-foreground mb-4">{community.description}</p>
-                        <a 
-                          href={community.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
-                        >
-                          Join Community <ExternalLink className="h-4 w-4" />
-                        </a>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </div>
         )}
