@@ -260,11 +260,11 @@ const Learn = () => {
           </div>
         ) : (
           // Results State - Full Layout
-          <div className="flex-1 px-4 py-8">
+          <div className="flex-1 px-4 py-8 pt-20"> {/* Added pt-20 to account for back button */}
             <div className="container mx-auto max-w-7xl">
               {/* Header with new search option */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-                <h2 className="text-3xl font-bold glow-text">Exploring: {topic}</h2>
+                <h2 className="text-3xl font-bold glow-text ml-0 sm:ml-2">Exploring: {topic}</h2> {/* Added margin for mobile spacing */}
                 <Button onClick={resetSearch} variant="outline" className="gap-2">
                   <Search className="h-4 w-4" />
                   New Search
