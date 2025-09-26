@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -479,7 +480,17 @@ export default function Quizzes() {
       </div>;
   }
   return <div className="min-h-screen bg-gradient-terminal p-4 scanlines">
-      <div className="max-w-6xl mx-auto space-y-8">
+      {/* Back button - positioned absolutely */}
+      <div className="absolute top-6 left-6 z-10">
+        <Link to="/">
+          <Button variant="outline" size="sm" className="gap-2 animate-fade-in font-retro">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Home
+          </Button>
+        </Link>
+      </div>
+
+      <div className="max-w-6xl mx-auto space-y-8 pt-20"> {/* Added pt-20 for back button spacing */}
         <div className="text-center">
           <h1 className="text-4xl md:text-6xl font-retro font-bold glow-text mb-4">
             RETRO QUIZZES
