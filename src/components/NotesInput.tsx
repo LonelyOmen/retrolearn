@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Sparkles, FileText, Mic, Image, Globe } from "lucide-react";
+import { Sparkles, FileText, Mic, Image as ImageIcon, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -28,7 +28,7 @@ export const NotesInput = ({
 
   const handleSubmit = () => {
     if (notes.trim() || images.length > 0) {
-      onProcessNotes(notes, images);
+      onProcessNotes(notes, images.map(({ data, mimeType }) => ({ data, mimeType })));
     }
   };
 
@@ -67,25 +67,50 @@ export const NotesInput = ({
     }
 
     try {
-      // Convert file to base64
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const base64 = e.target?.result as string;
-        const base64Data = base64.split(',')[1]; // Remove data URL prefix
-        
-        setImages(prev => [...prev, {
-          data: base64Data,
-          mimeType: file.type,
-          name: file.name
-        }]);
+      // Compress and convert to base64 to keep payload small
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const img = new Image();
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          img.onload = () => {
+            const MAX = 1600;
+            let width = img.naturalWidth;
+            let height = img.naturalHeight;
+            if (width > MAX || height > MAX) {
+              if (width >= height) {
+                height = Math.round((height * MAX) / width);
+                width = MAX;
+              } else {
+                width = Math.round((width * MAX) / height);
+                height = MAX;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return reject(new Error('Canvas not supported'));
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            resolve(dataUrl.split(',')[1]);
+          };
+          img.onerror = reject;
+          img.src = e.target?.result as string;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
 
-        toast({
-          title: "Image added",
-          description: `${file.name} will be processed with your notes.`,
-        });
-      };
+      setImages(prev => [...prev, {
+        data: base64Data,
+        mimeType: 'image/jpeg',
+        name: file.name
+      }]);
 
-      reader.readAsDataURL(file);
+      toast({
+        title: "Image added",
+        description: `${file.name} will be processed with your notes.`,
+      });
     } catch (error) {
       console.error('Error processing file:', error);
       toast({
@@ -129,7 +154,7 @@ export const NotesInput = ({
             disabled={isProcessing}
             className="text-xs"
           >
-            <Image className="w-4 h-4" />
+            <ImageIcon className="w-4 h-4" />
             ADD IMAGE
           </Button>
         </div>
@@ -141,7 +166,7 @@ export const NotesInput = ({
             <div className="flex flex-wrap gap-2">
               {images.map((image, index) => (
                 <div key={index} className="flex items-center gap-2 bg-muted/50 px-2 py-1 rounded border">
-                  <Image className="w-4 h-4" />
+                  <ImageIcon className="w-4 h-4" />
                   <span className="text-xs truncate max-w-[100px]">{image.name}</span>
                   <Button
                     variant="ghost"

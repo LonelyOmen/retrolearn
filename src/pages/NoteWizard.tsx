@@ -40,9 +40,11 @@ const NoteWizard = () => {
       setCurrentNote(null);
 
       // First, create the note in the database
+      const title = notes.trim() ? (notes.slice(0, 50) + (notes.length > 50 ? '...' : '')) : `Image Note (${images?.length || 0} image${(images?.length || 0) === 1 ? '' : 's'})`;
+      const originalContent = notes.trim() ? notes : 'Image-only note (content provided via images)';
       const newNote = await createNote({
-        title: notes.slice(0, 50) + (notes.length > 50 ? '...' : ''),
-        original_content: notes,
+        title,
+        original_content: originalContent,
         processing_status: 'pending'
       });
 
