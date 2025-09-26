@@ -353,7 +353,7 @@ Create 8 progressive learning steps that are specific to ${topic}. Each step sho
       }
     );
 
-    // Fetch Wikipedia articles with better search terms
+    // Use predefined Wikipedia articles based on topic category
     interface WikipediaArticle {
       title: string;
       url: string;
@@ -361,130 +361,220 @@ Create 8 progressive learning steps that are specific to ${topic}. Each step sho
       thumbnail: string | null;
     }
     
-    let wikipediaArticles: WikipediaArticle[] = [];
-    try {
-      console.log('Searching Wikipedia articles...');
+    const getWikipediaArticlesByTopic = (topic: string): WikipediaArticle[] => {
+      const topicLower = topic.toLowerCase();
       
-      // Search for main topic and related terms
-      const searchTerms = [
-        topic,
-        `${topic} basics`,
-        `${topic} fundamentals`,
-        `${topic} overview`
-      ];
-      
-      const allArticles: WikipediaArticle[] = [];
-      
-      for (const searchTerm of searchTerms) {
-        try {
-          const searchResponse = await fetch(
-            `https://en.wikipedia.org/api/rest_v1/page/search/${encodeURIComponent(searchTerm)}?limit=3`
-          );
-
-          if (searchResponse.ok) {
-            const searchData = await searchResponse.json();
-            
-            // Get detailed info for each article
-            for (const page of searchData.pages?.slice(0, 2) || []) {
-              try {
-                const summaryResponse = await fetch(
-                  `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(page.key)}`
-                );
-                
-                if (summaryResponse.ok) {
-                  const summaryData = await summaryResponse.json();
-                  
-                  // Avoid duplicates
-                  if (!allArticles.some(article => article.title === summaryData.title)) {
-                    allArticles.push({
-                      title: summaryData.title,
-                      url: summaryData.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(page.key)}`,
-                      description: summaryData.extract || page.description || `Wikipedia article about ${summaryData.title}`,
-                      thumbnail: summaryData.thumbnail?.source || null
-                    });
-                  }
-                }
-              } catch (articleError) {
-                console.error(`Error fetching Wikipedia article ${page.key}:`, articleError);
-              }
-            }
-          }
-        } catch (searchError) {
-          console.error(`Error searching for term "${searchTerm}":`, searchError);
-        }
-      }
-      
-      wikipediaArticles = allArticles.slice(0, 5); // Take top 5 unique articles
-      console.log(`Found ${wikipediaArticles.length} Wikipedia articles`);
-      
-    } catch (error) {
-      console.error('Wikipedia API error:', error);
-    }
-
-    // Enhanced fallback Wikipedia articles if API fails or returns few results
-    if (wikipediaArticles.length < 3) {
-      const topicTerms = topic.toLowerCase().split(' ');
-      const fallbackArticles: WikipediaArticle[] = [
-        {
-          title: topic,
-          url: `https://en.wikipedia.org/wiki/${encodeURIComponent(topic.replace(/\s+/g, '_'))}`,
-          description: `Comprehensive Wikipedia article about ${topic}`,
-          thumbnail: null
-        },
-        {
-          title: `${topic} - Overview`,
-          url: `https://en.wikipedia.org/wiki/Special:Search/${encodeURIComponent(topic + ' overview')}`,
-          description: `Search results for ${topic} overview and fundamentals`,
-          thumbnail: null
-        },
-        {
-          title: `History of ${topic}`,
-          url: `https://en.wikipedia.org/wiki/Special:Search/${encodeURIComponent('history of ' + topic)}`,
-          description: `Historical context and development of ${topic}`,
-          thumbnail: null
-        }
-      ];
-      
-      // Add topic-specific fallback articles
-      if (topicTerms.includes('programming') || topicTerms.includes('coding')) {
-        fallbackArticles.push({
-          title: "Computer Programming",
-          url: "https://en.wikipedia.org/wiki/Computer_programming",
-          description: "Comprehensive guide to computer programming concepts",
-          thumbnail: null
-        });
-      } else if (topicTerms.includes('cybersecurity') || topicTerms.includes('security')) {
-        fallbackArticles.push(
+      // Cybersecurity articles
+      if (topicLower.includes('cybersecurity') || topicLower.includes('security') || topicLower.includes('cyber')) {
+        return [
           {
             title: "Computer Security",
             url: "https://en.wikipedia.org/wiki/Computer_security",
-            description: "Fundamentals of computer and information security",
+            description: "Protection of computer systems and networks from attack by malicious actors",
             thumbnail: null
           },
           {
             title: "Information Security",
             url: "https://en.wikipedia.org/wiki/Information_security",
-            description: "Protecting information and information systems",
+            description: "Practice of protecting information by mitigating information risks",
+            thumbnail: null
+          },
+          {
+            title: "Network Security",
+            url: "https://en.wikipedia.org/wiki/Network_security",
+            description: "Policies and practices adopted to prevent unauthorized access to networks",
+            thumbnail: null
+          },
+          {
+            title: "Cryptography",
+            url: "https://en.wikipedia.org/wiki/Cryptography",
+            description: "Practice and study of techniques for secure communication",
             thumbnail: null
           }
-        );
-      } else if (topicTerms.includes('design') || topicTerms.includes('photography')) {
-        fallbackArticles.push({
-          title: "Design Principles",
-          url: "https://en.wikipedia.org/wiki/Design",
-          description: "Core principles and concepts of design",
-          thumbnail: null
-        });
+        ];
       }
       
-      // Merge existing articles with fallbacks, avoiding duplicates
-      const existingTitles = wikipediaArticles.map(article => article.title.toLowerCase());
-      const uniqueFallbacks = fallbackArticles.filter(
-        fallback => !existingTitles.includes(fallback.title.toLowerCase())
-      );
+      // Programming articles
+      if (topicLower.includes('programming') || topicLower.includes('coding') || topicLower.includes('javascript') || topicLower.includes('python') || topicLower.includes('java') || topicLower.includes('web development')) {
+        return [
+          {
+            title: "Computer Programming",
+            url: "https://en.wikipedia.org/wiki/Computer_programming",
+            description: "Process of creating and maintaining the source code of computer programs",
+            thumbnail: null
+          },
+          {
+            title: "Software Engineering",
+            url: "https://en.wikipedia.org/wiki/Software_engineering",
+            description: "Systematic approach to the design, development, and maintenance of software",
+            thumbnail: null
+          },
+          {
+            title: "Algorithm",
+            url: "https://en.wikipedia.org/wiki/Algorithm",
+            description: "Finite sequence of well-defined instructions for solving computational problems",
+            thumbnail: null
+          },
+          {
+            title: "Data Structure",
+            url: "https://en.wikipedia.org/wiki/Data_structure",
+            description: "Data organization, management, and storage format for efficient access",
+            thumbnail: null
+          }
+        ];
+      }
       
-      wikipediaArticles = [...wikipediaArticles, ...uniqueFallbacks].slice(0, 5);
-    }
+      // Design articles
+      if (topicLower.includes('design') || topicLower.includes('ui') || topicLower.includes('ux') || topicLower.includes('graphic') || topicLower.includes('photography')) {
+        return [
+          {
+            title: "Design",
+            url: "https://en.wikipedia.org/wiki/Design",
+            description: "Creation of a plan or specification for the construction of an object or system",
+            thumbnail: null
+          },
+          {
+            title: "Graphic Design",
+            url: "https://en.wikipedia.org/wiki/Graphic_design",
+            description: "Profession and academic discipline of visual communication and problem-solving",
+            thumbnail: null
+          },
+          {
+            title: "User Experience Design",
+            url: "https://en.wikipedia.org/wiki/User_experience_design",
+            description: "Process of supporting user behavior through usability and accessibility",
+            thumbnail: null
+          },
+          {
+            title: "Typography",
+            url: "https://en.wikipedia.org/wiki/Typography",
+            description: "Art and technique of arranging type to make written language readable",
+            thumbnail: null
+          }
+        ];
+      }
+      
+      // Science articles
+      if (topicLower.includes('science') || topicLower.includes('physics') || topicLower.includes('chemistry') || topicLower.includes('biology') || topicLower.includes('mathematics')) {
+        return [
+          {
+            title: "Science",
+            url: "https://en.wikipedia.org/wiki/Science",
+            description: "Systematic enterprise that builds knowledge through testable explanations",
+            thumbnail: null
+          },
+          {
+            title: "Scientific Method",
+            url: "https://en.wikipedia.org/wiki/Scientific_method",
+            description: "Empirical method of acquiring knowledge through systematic observation",
+            thumbnail: null
+          },
+          {
+            title: "Research",
+            url: "https://en.wikipedia.org/wiki/Research",
+            description: "Creative and systematic work undertaken to increase knowledge",
+            thumbnail: null
+          },
+          {
+            title: "Peer Review",
+            url: "https://en.wikipedia.org/wiki/Peer_review",
+            description: "Evaluation of work by one or more people with similar competencies",
+            thumbnail: null
+          }
+        ];
+      }
+      
+      // Language learning articles
+      if (topicLower.includes('language') || topicLower.includes('english') || topicLower.includes('spanish') || topicLower.includes('french') || topicLower.includes('learning')) {
+        return [
+          {
+            title: "Language Learning",
+            url: "https://en.wikipedia.org/wiki/Language_learning",
+            description: "Active process of acquiring a language other than one's native language",
+            thumbnail: null
+          },
+          {
+            title: "Second Language Acquisition",
+            url: "https://en.wikipedia.org/wiki/Second-language_acquisition",
+            description: "Process of learning languages in addition to the native language",
+            thumbnail: null
+          },
+          {
+            title: "Linguistics",
+            url: "https://en.wikipedia.org/wiki/Linguistics",
+            description: "Scientific study of language and its structure",
+            thumbnail: null
+          },
+          {
+            title: "Grammar",
+            url: "https://en.wikipedia.org/wiki/Grammar",
+            description: "Set of structural rules governing the composition of language",
+            thumbnail: null
+          }
+        ];
+      }
+      
+      // Business articles
+      if (topicLower.includes('business') || topicLower.includes('marketing') || topicLower.includes('management') || topicLower.includes('finance')) {
+        return [
+          {
+            title: "Business",
+            url: "https://en.wikipedia.org/wiki/Business",
+            description: "Organization engaged in commercial, industrial, or professional activity",
+            thumbnail: null
+          },
+          {
+            title: "Management",
+            url: "https://en.wikipedia.org/wiki/Management",
+            description: "Administration of an organization through planning and controlling resources",
+            thumbnail: null
+          },
+          {
+            title: "Marketing",
+            url: "https://en.wikipedia.org/wiki/Marketing",
+            description: "Process of exploring and satisfying customer needs through products",
+            thumbnail: null
+          },
+          {
+            title: "Entrepreneurship",
+            url: "https://en.wikipedia.org/wiki/Entrepreneurship",
+            description: "Creation or extraction of value through starting new business ventures",
+            thumbnail: null
+          }
+        ];
+      }
+      
+      // Generic fallback articles
+      return [
+        {
+          title: "Education",
+          url: "https://en.wikipedia.org/wiki/Education",
+          description: "Process of facilitating learning and acquisition of knowledge and skills",
+          thumbnail: null
+        },
+        {
+          title: "Learning",
+          url: "https://en.wikipedia.org/wiki/Learning",
+          description: "Process of acquiring new understanding, knowledge, behaviors, and skills",
+          thumbnail: null
+        },
+        {
+          title: "Knowledge",
+          url: "https://en.wikipedia.org/wiki/Knowledge",
+          description: "Familiarity, awareness, or understanding gained through experience or study",
+          thumbnail: null
+        },
+        {
+          title: "Skill",
+          url: "https://en.wikipedia.org/wiki/Skill",
+          description: "Learned ability to perform an action with determined results",
+          thumbnail: null
+        }
+      ];
+    };
+    
+    const wikipediaArticles = getWikipediaArticlesByTopic(topic);
+    console.log(`Selected ${wikipediaArticles.length} predefined Wikipedia articles for ${topic}`);
 
     // Generate image suggestions using Tavily or fallback
     let images = [];
