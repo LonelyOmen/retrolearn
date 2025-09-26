@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -73,6 +74,7 @@ const mockQA = [
 export const StudyResults = ({ isVisible, onReset, noteData }: StudyResultsProps) => {
   const [currentFlashcard, setCurrentFlashcard] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
+  const navigate = useNavigate();
 
   // Use real data or fallback to mock data
   const summary = noteData?.summary || mockSummary;
@@ -159,7 +161,7 @@ export const StudyResults = ({ isVisible, onReset, noteData }: StudyResultsProps
               <Download className="w-4 h-4" />
               EXPORT
             </Button>
-            <Button variant="terminal" size="sm" onClick={onReset}>
+            <Button variant="terminal" size="sm" onClick={() => navigate('/note-wizard')}>
               <RefreshCw className="w-4 h-4" />
               NEW NOTES
             </Button>
