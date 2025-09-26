@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Sparkles, FileText, Mic, Image, Globe } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 
 interface NotesInputProps {
   onProcessNotes: (notes: string) => void;
@@ -20,6 +22,9 @@ export const NotesInput = ({
   onToggleInternet 
 }: NotesInputProps) => {
   const [notes, setNotes] = useState("");
+  const [isExtracting, setIsExtracting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const handleSubmit = () => {
     if (notes.trim()) {
@@ -43,6 +48,90 @@ export const NotesInput = ({
     setNotes(demoNotes);
   };
 
+  const handleImageScan = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check if file is an image
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file (JPG, PNG, etc.)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsExtracting(true);
+
+    try {
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64 = e.target?.result as string;
+        const base64Data = base64.split(',')[1]; // Remove data URL prefix
+        
+        try {
+          const { data, error } = await supabase.functions.invoke('extract-text', {
+            body: {
+              image: base64Data,
+              mimeType: file.type
+            }
+          });
+
+          if (error) throw error;
+
+          if (data?.success) {
+            const extractedText = data.extractedText;
+            if (extractedText && extractedText !== "No text detected in the image.") {
+              setNotes(prev => prev ? `${prev}\n\n${extractedText}` : extractedText);
+              toast({
+                title: "Text extracted successfully",
+                description: "The text from your image has been added to your notes.",
+              });
+            } else {
+              toast({
+                title: "No text found",
+                description: "No readable text was detected in the image.",
+                variant: "destructive",
+              });
+            }
+          } else {
+            throw new Error(data?.error || 'Failed to extract text');
+          }
+        } catch (error) {
+          console.error('Error extracting text:', error);
+          toast({
+            title: "Extraction failed",
+            description: "Failed to extract text from the image. Please try again.",
+            variant: "destructive",
+          });
+        } finally {
+          setIsExtracting(false);
+        }
+      };
+
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error processing file:', error);
+      toast({
+        title: "File processing failed",
+        description: "Failed to process the image file.",
+        variant: "destructive",
+      });
+      setIsExtracting(false);
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <Card className="p-6 bg-card border-2 border-primary scanlines">
       <div className="space-y-4">
@@ -60,9 +149,15 @@ export const NotesInput = ({
             <Mic className="w-4 h-4" />
             VOICE (SOON)
           </Button>
-          <Button variant="terminal" size="sm" disabled className="text-xs opacity-50">
+          <Button 
+            variant="terminal" 
+            size="sm" 
+            onClick={handleImageScan}
+            disabled={isProcessing || isExtracting}
+            className="text-xs"
+          >
             <Image className="w-4 h-4" />
-            SCAN (SOON)
+            {isExtracting ? 'SCANNING...' : 'SCAN IMAGE'}
           </Button>
         </div>
 
@@ -118,6 +213,14 @@ export const NotesInput = ({
             DEMO
           </Button>
         </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileUpload}
+          className="hidden"
+        />
       </div>
     </Card>
   );
