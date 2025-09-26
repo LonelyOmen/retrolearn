@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,9 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Search, Loader2, ExternalLink, Users, Video, Image, Sparkles, Play, X, Plus, Trash2, Check, BookOpen } from "lucide-react";
+import { ArrowLeft, Search, Loader2, ExternalLink, Users, Video, Image, Sparkles, Play, X, Plus, Trash2, Check, BookOpen, Save, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 interface LearnResult {
   overview: string;
@@ -44,6 +45,20 @@ interface LearnResult {
   }>;
 }
 
+interface SavedLearningProgress {
+  id: string;
+  topic: string;
+  progress_percentage: number;
+  learning_steps: any; // Using any for Json type from database
+  total_steps: number;
+  completed_steps: number;
+  is_completed: boolean;
+  overview?: string;
+  tips?: any; // Using any for Json type from database
+  created_at: string;
+  updated_at: string;
+}
+
 const popularTopics = [
   "Machine Learning",
   "Astrophysics", 
@@ -63,7 +78,10 @@ const Learn = () => {
   const [learningSteps, setLearningSteps] = useState<LearnResult['learningSteps']>([]);
   const [newStepTitle, setNewStepTitle] = useState("");
   const [showCongratulations, setShowCongratulations] = useState(false);
+  const [savedLearningProgress, setSavedLearningProgress] = useState<SavedLearningProgress[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // Extract YouTube video ID from URL
   const getYouTubeVideoId = (url: string) => {
@@ -169,6 +187,150 @@ const Learn = () => {
     ? (learningSteps.filter(step => step.completed).length / learningSteps.length) * 100 
     : 0;
 
+  // Load saved learning progress
+  const loadSavedProgress = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('learning_progress')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+      setSavedLearningProgress(data || []);
+    } catch (error) {
+      console.error('Error loading saved progress:', error);
+    }
+  };
+
+  // Save current learning progress
+  const saveProgress = async () => {
+    if (!user || !result || !topic.trim()) return;
+    
+    setIsSaving(true);
+    try {
+      const completedSteps = learningSteps.filter(step => step.completed).length;
+      const progressPercent = learningSteps.length > 0 ? Math.round((completedSteps / learningSteps.length) * 100) : 0;
+      const isCompleted = progressPercent === 100;
+
+      // Check if this topic already exists for the user
+      const { data: existingProgress } = await supabase
+        .from('learning_progress')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('topic', topic)
+        .single();
+
+      if (existingProgress) {
+        // Update existing progress
+        const { error } = await supabase
+          .from('learning_progress')
+          .update({
+            progress_percentage: progressPercent,
+            learning_steps: learningSteps,
+            total_steps: learningSteps.length,
+            completed_steps: completedSteps,
+            is_completed: isCompleted,
+            overview: result.overview,
+            tips: result.tips,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingProgress.id);
+
+        if (error) throw error;
+      } else {
+        // Create new progress entry
+        const { error } = await supabase
+          .from('learning_progress')
+          .insert({
+            user_id: user.id,
+            topic: topic,
+            progress_percentage: progressPercent,
+            learning_steps: learningSteps,
+            total_steps: learningSteps.length,
+            completed_steps: completedSteps,
+            is_completed: isCompleted,
+            overview: result.overview,
+            tips: result.tips
+          });
+
+        if (error) throw error;
+      }
+
+      await loadSavedProgress();
+      toast({
+        title: "Progress saved!",
+        description: `Your learning progress for "${topic}" has been saved.`,
+      });
+    } catch (error) {
+      console.error('Error saving progress:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save progress. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Delete saved learning progress
+  const deleteSavedProgress = async (progressId: string, topicName: string) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('learning_progress')
+        .delete()
+        .eq('id', progressId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setSavedLearningProgress(prev => prev.filter(p => p.id !== progressId));
+      toast({
+        title: "Progress deleted",
+        description: `Removed "${topicName}" from your learning list.`,
+      });
+    } catch (error) {
+      console.error('Error deleting progress:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete progress. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Continue learning from saved progress
+  const continueFromSaved = (savedProgress: SavedLearningProgress) => {
+    setTopic(savedProgress.topic);
+    setLearningSteps(savedProgress.learning_steps);
+    
+    // Create result object from saved data
+    const restoredResult: LearnResult = {
+      overview: savedProgress.overview || `Continue learning about ${savedProgress.topic}`,
+      tips: Array.isArray(savedProgress.tips) ? savedProgress.tips : [],
+      learningSteps: savedProgress.learning_steps,
+      videos: [],
+      images: [],
+      communities: [],
+      wikipediaArticles: []
+    };
+    
+    setResult(restoredResult);
+    setShowCongratulations(savedProgress.is_completed);
+  };
+
+  // Load saved progress on component mount
+  useEffect(() => {
+    if (user) {
+      loadSavedProgress();
+    }
+  }, [user]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       {/* Back button - positioned absolutely */}
@@ -256,6 +418,76 @@ const Learn = () => {
                   ))}
                 </div>
               </div>
+
+              {/* Finish Learning About Section */}
+              {user && savedLearningProgress.length > 0 && (
+                <div className="space-y-6 mt-16">
+                  <div className="text-center">
+                    <h3 className="text-2xl font-semibold text-muted-foreground mb-2">Finish Learning About...</h3>
+                    <p className="text-lg text-muted-foreground/80">Continue your learning journey</p>
+                  </div>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto">
+                    {savedLearningProgress.map((progress, index) => (
+                      <Card 
+                        key={progress.id} 
+                        className="border-primary/20 bg-background/50 backdrop-blur-sm hover:bg-background/70 transition-all duration-300 animate-fade-in"
+                        style={{ animationDelay: `${index * 100}ms` }}
+                      >
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+                              <BookOpen className="h-5 w-5 text-primary" />
+                              {progress.topic}
+                            </CardTitle>
+                            {progress.is_completed && (
+                              <CheckCircle className="h-6 w-6 text-green-500" />
+                            )}
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm text-muted-foreground">
+                              <span>{progress.completed_steps} / {progress.total_steps} steps</span>
+                              <span className={progress.is_completed ? "text-green-500 font-semibold" : ""}>
+                                {progress.progress_percentage}%
+                              </span>
+                            </div>
+                            <Progress 
+                              value={progress.progress_percentage} 
+                              className={progress.is_completed ? "h-2 progress-completed" : "h-2"}
+                            />
+                            {progress.is_completed && (
+                              <div className="flex items-center gap-1 text-green-500 text-sm font-medium">
+                                <Check className="h-4 w-4" />
+                                Completed!
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => continueFromSaved(progress)}
+                              className="flex-1 gap-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20"
+                              variant="outline"
+                            >
+                              <Play className="h-4 w-4" />
+                              {progress.is_completed ? "Review" : "Continue"}
+                            </Button>
+                            <Button
+                              onClick={() => deleteSavedProgress(progress.id, progress.topic)}
+                              variant="outline"
+                              size="icon"
+                              className="border-destructive/20 text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -318,6 +550,29 @@ const Learn = () => {
                           <span>{Math.round(progressPercentage)}%</span>
                         </div>
                         <Progress value={progressPercentage} className="h-3" />
+                        {user && (
+                          <div className="flex justify-end">
+                            <Button
+                              onClick={saveProgress}
+                              disabled={isSaving}
+                              className="gap-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20"
+                              variant="outline"
+                              size="sm"
+                            >
+                              {isSaving ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Saving...
+                                </>
+                              ) : (
+                                <>
+                                  <Save className="h-4 w-4" />
+                                  Save Progress
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        )}
                         {showCongratulations && (
                           <div className="text-center py-4 space-y-2">
                             <div className="text-2xl">🌟</div>

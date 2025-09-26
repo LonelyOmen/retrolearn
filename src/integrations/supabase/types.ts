@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      learning_progress: {
+        Row: {
+          completed_steps: number
+          created_at: string
+          id: string
+          is_completed: boolean
+          learning_steps: Json
+          overview: string | null
+          progress_percentage: number
+          tips: Json | null
+          topic: string
+          total_steps: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_steps?: number
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          learning_steps?: Json
+          overview?: string | null
+          progress_percentage?: number
+          tips?: Json | null
+          topic: string
+          total_steps?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_steps?: number
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          learning_steps?: Json
+          overview?: string | null
+          progress_percentage?: number
+          tips?: Json | null
+          topic?: string
+          total_steps?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notes: {
         Row: {
           created_at: string
