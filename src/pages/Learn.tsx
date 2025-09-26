@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Search, Loader2, ExternalLink, Users, Video, Image, Sparkles, Play, X, Plus, Trash2, Check } from "lucide-react";
+import { ArrowLeft, Search, Loader2, ExternalLink, Users, Video, Image, Sparkles, Play, X, Plus, Trash2, Check, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -35,6 +35,12 @@ interface LearnResult {
     url: string;
     platform: string;
     description: string;
+  }>;
+  wikipediaArticles: Array<{
+    title: string;
+    url: string;
+    description: string;
+    thumbnail?: string | null;
   }>;
 }
 
@@ -371,8 +377,47 @@ const Learn = () => {
                   </Card>
                 </div>
 
-                {/* Right Column - Videos */}
+                {/* Right Column - Videos and Wikipedia */}
                 <div className="space-y-6">
+                  {/* Wikipedia Resources */}
+                  <Card className="border-primary/20 animate-fade-in bg-background/50 backdrop-blur-sm" style={{ animationDelay: "300ms" }}>
+                    <CardHeader className="pb-4">
+                      <CardTitle className="glow-text text-xl flex items-center gap-3">
+                        <BookOpen className="h-5 w-5" />
+                        Wikipedia Resources
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {result.wikipediaArticles?.map((article, index) => (
+                          <div key={index} className="border border-border/30 rounded-lg p-4 hover:bg-muted/10 transition-colors">
+                            <div className="flex justify-between items-start gap-3">
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+                                  {article.title}
+                                  <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                                </h4>
+                                <p className="text-sm text-muted-foreground leading-relaxed">
+                                  {article.description}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="mt-3">
+                              <a 
+                                href={article.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:text-primary/80 text-sm font-medium transition-colors"
+                              >
+                                Read full article →
+                              </a>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
                   <Card className="border-primary/20 animate-fade-in bg-background/50 backdrop-blur-sm" style={{ animationDelay: "400ms" }}>
                     <CardHeader className="pb-4">
                       <CardTitle className="glow-text text-xl flex items-center gap-3">

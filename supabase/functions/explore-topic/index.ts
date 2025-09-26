@@ -250,6 +250,56 @@ Create 7-10 progressive learning steps that build from beginner to advanced leve
       }
     );
 
+    // Fetch Wikipedia articles
+    let wikipediaArticles = [];
+    try {
+      console.log('Searching Wikipedia articles...');
+      // First, search for articles related to the topic
+      const searchResponse = await fetch(
+        `https://en.wikipedia.org/api/rest_v1/page/search/${encodeURIComponent(topic)}?limit=5`
+      );
+
+      if (searchResponse.ok) {
+        const searchData = await searchResponse.json();
+        
+        // Get detailed info for each article
+        for (const page of searchData.pages?.slice(0, 3) || []) {
+          try {
+            const summaryResponse = await fetch(
+              `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(page.key)}`
+            );
+            
+            if (summaryResponse.ok) {
+              const summaryData = await summaryResponse.json();
+              wikipediaArticles.push({
+                title: summaryData.title,
+                url: summaryData.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(page.key)}`,
+                description: summaryData.extract || page.description || `Wikipedia article about ${summaryData.title}`,
+                thumbnail: summaryData.thumbnail?.source || null
+              });
+            }
+          } catch (articleError) {
+            console.error(`Error fetching Wikipedia article ${page.key}:`, articleError);
+          }
+        }
+        console.log(`Found ${wikipediaArticles.length} Wikipedia articles`);
+      }
+    } catch (error) {
+      console.error('Wikipedia API error:', error);
+    }
+
+    // Fallback Wikipedia articles if API fails
+    if (wikipediaArticles.length === 0) {
+      wikipediaArticles = [
+        {
+          title: topic,
+          url: `https://en.wikipedia.org/wiki/${encodeURIComponent(topic.replace(/\s+/g, '_'))}`,
+          description: `Learn more about ${topic} on Wikipedia`,
+          thumbnail: null
+        }
+      ];
+    }
+
     // Generate image suggestions using Tavily or fallback
     let images = [];
     if (tavilyApiKey) {
@@ -310,7 +360,8 @@ Create 7-10 progressive learning steps that build from beginner to advanced leve
       tips: geminiResult.tips,
       learningSteps: geminiResult.learningSteps || [],
       images: images.slice(0, 3),
-      communities: communities.slice(0, 5)
+      communities: communities.slice(0, 5),
+      wikipediaArticles: wikipediaArticles.slice(0, 3)
     };
 
     console.log('Successfully processed topic exploration with real API data');
