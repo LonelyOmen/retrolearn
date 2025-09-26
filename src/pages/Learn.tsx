@@ -163,6 +163,9 @@ const Learn = () => {
         description: `You've completed your learning journey for "${topic}"! Keep exploring new topics!`,
       });
     }
+    
+    // Auto-save progress after step completion change
+    setTimeout(() => autoSaveProgress(), 500);
   };
 
   const addStep = () => {
@@ -177,10 +180,16 @@ const Learn = () => {
     
     setLearningSteps([...learningSteps, newStep]);
     setNewStepTitle("");
+    
+    // Auto-save progress after adding step
+    setTimeout(() => autoSaveProgress(), 500);
   };
 
   const removeStep = (stepId: string) => {
     setLearningSteps(learningSteps.filter(step => step.id !== stepId));
+    
+    // Auto-save progress after removing step
+    setTimeout(() => autoSaveProgress(), 500);
   };
 
   const progressPercentage = learningSteps.length > 0 
@@ -205,11 +214,10 @@ const Learn = () => {
     }
   };
 
-  // Save current learning progress
-  const saveProgress = async () => {
+  // Auto-save current learning progress
+  const autoSaveProgress = async () => {
     if (!user || !result || !topic.trim()) return;
     
-    setIsSaving(true);
     try {
       const completedSteps = learningSteps.filter(step => step.completed).length;
       const progressPercent = learningSteps.length > 0 ? Math.round((completedSteps / learningSteps.length) * 100) : 0;
@@ -260,19 +268,8 @@ const Learn = () => {
       }
 
       await loadSavedProgress();
-      toast({
-        title: "Progress saved!",
-        description: `Your learning progress for "${topic}" has been saved.`,
-      });
     } catch (error) {
-      console.error('Error saving progress:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save progress. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
+      console.error('Error auto-saving progress:', error);
     }
   };
 
@@ -550,29 +547,6 @@ const Learn = () => {
                           <span>{Math.round(progressPercentage)}%</span>
                         </div>
                         <Progress value={progressPercentage} className="h-3" />
-                        {user && (
-                          <div className="flex justify-end">
-                            <Button
-                              onClick={saveProgress}
-                              disabled={isSaving}
-                              className="gap-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20"
-                              variant="outline"
-                              size="sm"
-                            >
-                              {isSaving ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                  Saving...
-                                </>
-                              ) : (
-                                <>
-                                  <Save className="h-4 w-4" />
-                                  Save Progress
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        )}
                         {showCongratulations && (
                           <div className="text-center py-4 space-y-2">
                             <div className="text-2xl">🌟</div>
