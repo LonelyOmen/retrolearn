@@ -173,142 +173,166 @@ export default function Home() {
         </div>
 
         {/* Feature Cards */}
-        {!user ? <div className="text-center py-12 bg-card border-2 border-primary scanlines">
-            <User className="w-16 h-16 mx-auto mb-4 text-primary" />
-            <h2 className="text-2xl font-retro font-bold glow-text mb-2">
+        {!user ? (
+          <div className="text-center py-16 bg-card border-2 border-primary rounded-xl scanlines animate-fade-in">
+            <User className="w-20 h-20 mx-auto mb-6 text-primary animate-pulse" />
+            <h2 className="text-3xl font-retro font-bold glow-text mb-4">
               ACCESS REQUIRED
             </h2>
-            <p className="font-retro text-muted-foreground mb-6 max-w-md mx-auto">
+            <p className="font-retro text-muted-foreground mb-8 max-w-md mx-auto text-lg">
               Sign in to access all Retro Learn features and start your learning journey
             </p>
-            <Button variant="neon" onClick={() => setShowAuthModal(true)} className="font-retro" disabled={loading}>
-              <User className="w-4 h-4 mr-2" />
+            <Button 
+              variant="neon" 
+              size="lg"
+              onClick={() => setShowAuthModal(true)} 
+              className="font-retro hover:scale-105 transition-transform" 
+              disabled={loading}
+            >
+              <User className="w-5 h-5 mr-2" />
               SIGN IN TO CONTINUE
             </Button>
-          </div> : <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
-            {/* Retro Note Wizard */}
-            <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-primary bg-card scanlines">
-              <CardHeader className="text-center pb-4">
-                <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                  <Wand2 className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
-                </div>
-                <CardTitle className="font-retro text-xl glow-text group-hover:glow-pink transition-all">NOTE WIZARD</CardTitle>
-                <CardDescription className="font-retro text-muted-foreground">
-                  Transform your messy notes into organized study materials with AI magic
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center mx-px px-0">
-                <Button variant="outline" onClick={e => {
-              e.stopPropagation();
-              navigate('/note-wizard');
-            }} className="font-retro group-hover:bg-primary/20 transition-colors my-0 py-0 mx-0 px-0 w-full">
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  START TRANSFORMING
-                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </CardContent>
-            </Card>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {/* Primary Features Row */}
+            <div className="grid gap-8 lg:grid-cols-2">
+              {/* Note Wizard - Primary Feature */}
+              <Card className="group hover:shadow-neon transition-all duration-500 border-2 border-primary bg-card rounded-xl scanlines hover:scale-[1.02] animate-fade-in lg:col-span-2">
+                <CardHeader className="text-center pb-6">
+                  <div className="flex items-center justify-center w-20 h-20 mx-auto mb-6 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-all duration-300">
+                    <Wand2 className="w-10 h-10 text-primary group-hover:scale-110 group-hover:rotate-12 transition-all duration-300" />
+                  </div>
+                  <CardTitle className="font-retro text-2xl glow-text group-hover:glow-pink transition-all duration-300">
+                    NOTE WIZARD
+                  </CardTitle>
+                  <CardDescription className="font-retro text-muted-foreground text-lg max-w-md mx-auto">
+                    Transform your messy notes into organized study materials with AI magic
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="text-center">
+                  <Button 
+                    variant="outline" 
+                    size="lg"
+                    onClick={() => navigate('/note-wizard')}
+                    className="font-retro group-hover:bg-primary/20 transition-all duration-300 hover:scale-105"
+                  >
+                    <Sparkles className="w-5 h-5 mr-2 animate-pulse" />
+                    START TRANSFORMING
+                    <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-2 transition-transform duration-300" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
 
-            {/* My Notes */}
-            <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-secondary bg-card scanlines">
-              <CardHeader className="text-center pb-4">
-                <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-secondary/10 group-hover:bg-secondary/20 transition-colors">
-                  <FileText className="w-8 h-8 text-secondary group-hover:scale-110 transition-transform" />
-                </div>
-                <CardTitle className="font-retro text-xl glow-text group-hover:glow-blue transition-all">
-                  MY NOTES
-                </CardTitle>
-                <CardDescription className="font-retro text-muted-foreground">
-                  Browse, search, and manage all your transformed notes and study materials
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center">
-                <Button className="font-retro group-hover:bg-secondary/20 transition-colors w-full" variant="outline" onClick={e => {
-              e.stopPropagation();
-              navigate('/notes');
-            }}>
-                  <FileText className="w-4 h-4 mr-2" />
-                  VIEW NOTES
-                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </CardContent>
-            </Card>
+            {/* Secondary Features Grid */}
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {/* My Notes */}
+              <Card className="group hover:shadow-neon transition-all duration-500 border-2 border-secondary bg-card rounded-xl scanlines hover:scale-105 animate-fade-in">
+                <CardHeader className="text-center pb-4">
+                  <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-secondary/10 group-hover:bg-secondary/20 transition-all duration-300">
+                    <FileText className="w-8 h-8 text-secondary group-hover:scale-110 group-hover:rotate-6 transition-all duration-300" />
+                  </div>
+                  <CardTitle className="font-retro text-lg glow-text group-hover:glow-blue transition-all duration-300">
+                    MY NOTES
+                  </CardTitle>
+                  <CardDescription className="font-retro text-muted-foreground text-sm">
+                    Browse and manage your study materials
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="text-center">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => navigate('/notes')}
+                    className="font-retro group-hover:bg-secondary/20 transition-all duration-300 w-full text-sm"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    VIEW NOTES
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
+                  </Button>
+                </CardContent>
+              </Card>
 
-            {/* Work Rooms */}
-            <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-accent bg-card scanlines">
-              <CardHeader className="text-center pb-4">
-                <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-accent/10 group-hover:bg-accent/20 transition-colors">
-                  <Users className="w-8 h-8 text-accent group-hover:scale-110 transition-transform" />
-                </div>
-                <CardTitle className="font-retro text-xl glow-text group-hover:glow-pink transition-all">
-                  WORK ROOMS
-                </CardTitle>
-                <CardDescription className="font-retro text-muted-foreground">
-                  Collaborate with others, share notes, and study together in real-time
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center">
-                <Button className="font-retro group-hover:bg-accent/20 transition-colors w-full" variant="outline" onClick={e => {
-              e.stopPropagation();
-              navigate('/workrooms');
-            }}>
-                  <Users className="w-4 h-4 mr-2" />
-                  JOIN ROOMS
-                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </CardContent>
-            </Card>
+              {/* Work Rooms */}
+              <Card className="group hover:shadow-neon transition-all duration-500 border-2 border-accent bg-card rounded-xl scanlines hover:scale-105 animate-fade-in">
+                <CardHeader className="text-center pb-4">
+                  <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-accent/10 group-hover:bg-accent/20 transition-all duration-300">
+                    <Users className="w-8 h-8 text-accent group-hover:scale-110 group-hover:rotate-6 transition-all duration-300" />
+                  </div>
+                  <CardTitle className="font-retro text-lg glow-text group-hover:glow-pink transition-all duration-300">
+                    WORK ROOMS
+                  </CardTitle>
+                  <CardDescription className="font-retro text-muted-foreground text-sm">
+                    Collaborate and study together
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="text-center">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => navigate('/workrooms')}
+                    className="font-retro group-hover:bg-accent/20 transition-all duration-300 w-full text-sm"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    JOIN ROOMS
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
+                  </Button>
+                </CardContent>
+              </Card>
 
-            {/* Quizzes */}
-            <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-warning bg-card scanlines">
-              <CardHeader className="text-center pb-4">
-                <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-warning/10 group-hover:bg-warning/20 transition-colors">
-                  <Trophy className="w-8 h-8 text-warning group-hover:scale-110 transition-transform" />
-                </div>
-                <CardTitle className="font-retro text-xl glow-text group-hover:glow-blue transition-all">
-                  QUIZZES
-                </CardTitle>
-                <CardDescription className="font-retro text-muted-foreground">
-                  Test your knowledge with AI-generated multiple choice quizzes
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center">
-                <Button className="font-retro group-hover:bg-warning/20 transition-colors w-full" variant="outline" onClick={e => {
-              e.stopPropagation();
-              navigate('/quizzes');
-            }}>
-                  <Trophy className="w-4 h-4 mr-2" />
-                  START QUIZ
-                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </CardContent>
-            </Card>
+              {/* Quizzes */}
+              <Card className="group hover:shadow-neon transition-all duration-500 border-2 border-warning bg-card rounded-xl scanlines hover:scale-105 animate-fade-in">
+                <CardHeader className="text-center pb-4">
+                  <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-warning/10 group-hover:bg-warning/20 transition-all duration-300">
+                    <Trophy className="w-8 h-8 text-warning group-hover:scale-110 group-hover:rotate-6 transition-all duration-300" />
+                  </div>
+                  <CardTitle className="font-retro text-lg glow-text group-hover:glow-blue transition-all duration-300">
+                    QUIZZES
+                  </CardTitle>
+                  <CardDescription className="font-retro text-muted-foreground text-sm">
+                    Test your knowledge with AI
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="text-center">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => navigate('/quizzes')}
+                    className="font-retro group-hover:bg-warning/20 transition-all duration-300 w-full text-sm"
+                  >
+                    <Trophy className="w-4 h-4 mr-2" />
+                    START QUIZ
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
+                  </Button>
+                </CardContent>
+              </Card>
 
-            {/* Learn Anything */}
-            <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-destructive bg-card scanlines">
-              <CardHeader className="text-center pb-4">
-                <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 group-hover:bg-destructive/20 transition-colors">
-                  <Search className="w-8 h-8 text-destructive group-hover:scale-110 transition-transform" />
-                </div>
-                <CardTitle className="font-retro text-xl glow-text group-hover:glow-pink transition-all">
-                  LEARN ANYTHING
-                </CardTitle>
-                <CardDescription className="font-retro text-muted-foreground">
-                  Discover comprehensive information about any topic from across the internet
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center">
-                <Button className="font-retro group-hover:bg-destructive/20 transition-colors w-full" variant="outline" onClick={e => {
-              e.stopPropagation();
-              navigate('/learn');
-            }}>
-                  <Search className="w-4 h-4 mr-2" />
-                  EXPLORE TOPICS
-                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </CardContent>
-            </Card>
-          </div>}
+              {/* Learn Anything */}
+              <Card className="group hover:shadow-neon transition-all duration-500 border-2 border-destructive bg-card rounded-xl scanlines hover:scale-105 animate-fade-in">
+                <CardHeader className="text-center pb-4">
+                  <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 group-hover:bg-destructive/20 transition-all duration-300">
+                    <Search className="w-8 h-8 text-destructive group-hover:scale-110 group-hover:rotate-6 transition-all duration-300" />
+                  </div>
+                  <CardTitle className="font-retro text-lg glow-text group-hover:glow-pink transition-all duration-300">
+                    LEARN ANYTHING
+                  </CardTitle>
+                  <CardDescription className="font-retro text-muted-foreground text-sm">
+                    Discover any topic instantly
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="text-center">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => navigate('/learn')}
+                    className="font-retro group-hover:bg-destructive/20 transition-all duration-300 w-full text-sm"
+                  >
+                    <Search className="w-4 h-4 mr-2" />
+                    EXPLORE TOPICS
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <footer className="text-center pt-8 border-t border-primary">
