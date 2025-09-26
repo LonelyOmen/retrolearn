@@ -23,76 +23,94 @@ serve(async (req) => {
 
     // Get API keys
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+    const geminiApiKeySecondary = Deno.env.get('GEMINI_API_KEY_SECONDARY');
     const youtubeApiKey = Deno.env.get('YOUTUBE_API_KEY');
     const redditApiKey = Deno.env.get('REDDIT_API_KEY');
     const tavilyApiKey = Deno.env.get('TAVILY_API_KEY');
 
-    if (!geminiApiKey) {
-      throw new Error('GEMINI_API_KEY not configured');
+    if (!geminiApiKey && !geminiApiKeySecondary) {
+      throw new Error('GEMINI_API_KEY or GEMINI_API_KEY_SECONDARY must be configured');
     }
 
-    // Generate overview and tips using Gemini
-    const geminiPrompt = `For the topic "${topic}", create an educational overview, learning tips, and progressive learning steps.
+    // Helper function to call Gemini API with fallback
+    const callGeminiAPI = async (prompt: string, apiKey: string) => {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: prompt
+              }]
+            }],
+            generationConfig: {
+              temperature: 0.3,
+              topK: 20,
+              topP: 0.8,
+              maxOutputTokens: 800, // Reduced to avoid token limits
+              responseMimeType: "application/json"
+            }
+          })
+        }
+      );
 
-Response format (JSON only):
+      if (!response.ok) {
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
+
+      return response.json();
+    };
+
+    // Shorter, more focused prompt to avoid token limits
+    const geminiPrompt = `Create educational content for "${topic}" in JSON format:
+
 {
-  "overview": "2-3 paragraph detailed explanation of ${topic}",
+  "overview": "Brief 1-2 paragraph overview of ${topic}",
   "tips": [
-    "Practical learning tip 1",
-    "Practical learning tip 2", 
-    "Practical learning tip 3",
-    "Practical learning tip 4",
-    "Practical learning tip 5"
+    "5 practical learning tips as short strings"
   ],
   "learningSteps": [
     {
       "id": "step-1",
-      "title": "Understanding the Basics",
-      "description": "Start with fundamental concepts and terminology",
-      "completed": false
-    },
-    {
-      "id": "step-2", 
-      "title": "Core Principles",
-      "description": "Learn the main principles and theories",
+      "title": "Step Title",
+      "description": "Brief task description",
       "completed": false
     }
   ]
 }
 
-Create 7-10 progressive learning steps that build from beginner to advanced level. Each step should be specific and actionable. Return only valid JSON, no additional text or markdown.`;
+Generate 7-10 progressive learning steps. Keep all text concise. Return valid JSON only.`;
 
     console.log('Calling Gemini API...');
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: geminiPrompt
-            }]
-          }],
-          generationConfig: {
-            temperature: 0.3,
-            topK: 20,
-            topP: 0.8,
-            maxOutputTokens: 1024,
-            responseMimeType: "application/json"
-          }
-        })
-      }
-    );
-
-    if (!geminiResponse.ok) {
-      console.error('Gemini API error:', geminiResponse.status, await geminiResponse.text());
-      throw new Error(`Gemini API error: ${geminiResponse.status}`);
+    let geminiData;
+    const currentApiKey = geminiApiKey || geminiApiKeySecondary;
+    
+    if (!currentApiKey) {
+      throw new Error('No Gemini API keys available');
     }
-
-    const geminiData = await geminiResponse.json();
+    
+    try {
+      geminiData = await callGeminiAPI(geminiPrompt, currentApiKey);
+    } catch (error) {
+      console.error('Primary Gemini API error:', error);
+      // Try secondary key if primary fails
+      if (geminiApiKeySecondary && currentApiKey === geminiApiKey) {
+        console.log('Trying secondary Gemini API key...');
+        try {
+          geminiData = await callGeminiAPI(geminiPrompt, geminiApiKeySecondary);
+        } catch (secondaryError) {
+          console.error('Secondary Gemini API error:', secondaryError);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          throw new Error(`Both Gemini API keys failed: ${errorMessage}`);
+        }
+      } else {
+        throw error;
+      }
+    }
     const geminiContent = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
     
     console.log('Full Gemini API response:', JSON.stringify(geminiData, null, 2));
@@ -103,15 +121,22 @@ Create 7-10 progressive learning steps that build from beginner to advanced leve
         candidateCount: geminiData.candidates?.length,
         firstCandidate: geminiData.candidates?.[0],
         content: geminiData.candidates?.[0]?.content,
-        parts: geminiData.candidates?.[0]?.content?.parts
+        parts: geminiData.candidates?.[0]?.content?.parts,
+        finishReason: geminiData.candidates?.[0]?.finishReason
       });
-      throw new Error('No content generated by Gemini');
+      
+      // If we hit token limits, use fallback
+      if (geminiData.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+        console.log('Hit token limits, using fallback content');
+      } else {
+        throw new Error('No content generated by Gemini');
+      }
     }
 
     console.log('Raw Gemini response:', geminiContent);
 
-    // Parse Gemini response
-    let geminiJsonStr = geminiContent.trim();
+    // Parse Gemini response with better error handling
+    let geminiJsonStr = geminiContent?.trim() || '';
     if (geminiJsonStr.startsWith('```json')) {
       geminiJsonStr = geminiJsonStr.slice(7);
     }
@@ -125,28 +150,35 @@ Create 7-10 progressive learning steps that build from beginner to advanced leve
 
     let geminiResult;
     try {
+      // If content is empty or truncated, use fallback
+      if (!geminiJsonStr || geminiData.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+        throw new Error('Content truncated due to token limits');
+      }
       geminiResult = JSON.parse(geminiJsonStr);
     } catch (parseError) {
       console.error('Gemini JSON parse error:', parseError);
       console.error('Content to parse:', geminiJsonStr);
-      // Fallback content
+      console.error('Finish reason:', geminiData.candidates?.[0]?.finishReason);
+      
+      // Enhanced fallback content with topic-specific tasks
       geminiResult = {
-        overview: `${topic} is an important subject that offers valuable learning opportunities. This field encompasses various concepts and principles that can benefit learners at different levels. Understanding ${topic} requires dedication and practice.`,
+        overview: `${topic} is a fascinating subject that offers valuable learning opportunities. This field encompasses various concepts and principles that can benefit learners at different levels. Understanding ${topic} requires dedication, practice, and a structured approach to build expertise progressively.`,
         tips: [
-          "Start with the basics and build a strong foundation",
-          "Practice regularly to reinforce your learning",
-          "Join communities and engage with other learners",
-          "Use multiple resources to get different perspectives",
-          "Be patient and persistent in your learning journey"
+          `Start with the fundamentals of ${topic} to build a solid foundation`,
+          `Practice regularly and apply concepts through hands-on exercises`,
+          `Join communities and connect with other ${topic} enthusiasts`,
+          `Use multiple learning resources to gain different perspectives`,
+          `Set specific goals and track your progress in ${topic}`
         ],
         learningSteps: [
-          { id: "step-1", title: "Foundation Knowledge", description: "Understand basic concepts and terminology", completed: false },
-          { id: "step-2", title: "Core Principles", description: "Learn fundamental principles and theories", completed: false },
-          { id: "step-3", title: "Practical Application", description: "Apply knowledge through exercises and practice", completed: false },
-          { id: "step-4", title: "Intermediate Concepts", description: "Explore more complex topics and relationships", completed: false },
-          { id: "step-5", title: "Advanced Techniques", description: "Master advanced methods and best practices", completed: false },
-          { id: "step-6", title: "Real-world Projects", description: "Work on practical projects and case studies", completed: false },
-          { id: "step-7", title: "Expert Level", description: "Develop expertise and share knowledge with others", completed: false }
+          { id: "step-1", title: `${topic} Basics`, description: `Learn fundamental concepts and terminology of ${topic}`, completed: false },
+          { id: "step-2", title: "Core Principles", description: `Understand the main principles and theories behind ${topic}`, completed: false },
+          { id: "step-3", title: "Practical Application", description: `Apply your knowledge through exercises and practice in ${topic}`, completed: false },
+          { id: "step-4", title: "Intermediate Concepts", description: `Explore more complex topics and advanced concepts in ${topic}`, completed: false },
+          { id: "step-5", title: "Hands-on Projects", description: `Work on real projects to deepen your understanding of ${topic}`, completed: false },
+          { id: "step-6", title: "Advanced Techniques", description: `Master advanced methods and best practices in ${topic}`, completed: false },
+          { id: "step-7", title: "Problem Solving", description: `Develop problem-solving skills specific to ${topic}`, completed: false },
+          { id: "step-8", title: "Community Engagement", description: `Share knowledge and learn from the ${topic} community`, completed: false }
         ]
       };
     }
