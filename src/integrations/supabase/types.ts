@@ -508,6 +508,36 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_quiz_questions_for_attempt: {
+        Args: { p_quiz_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          option_a: string
+          option_b: string
+          option_c: string
+          option_d: string
+          question_number: number
+          question_text: string
+          quiz_id: string
+        }[]
+      }
+      get_quiz_results_with_answers: {
+        Args: { p_attempt_id: string; p_quiz_id: string }
+        Returns: {
+          correct_answer: string
+          id: string
+          is_correct: boolean
+          option_a: string
+          option_b: string
+          option_c: string
+          option_d: string
+          question_number: number
+          question_text: string
+          quiz_id: string
+          user_answer: string
+        }[]
+      }
       is_member_of_room: {
         Args: { p_room_id: string }
         Returns: boolean

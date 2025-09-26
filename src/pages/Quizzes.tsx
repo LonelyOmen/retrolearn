@@ -33,13 +33,23 @@ interface QuizQuestion {
   option_b: string;
   option_c: string;
   option_d: string;
-  correct_answer: string;
+  correct_answer?: string; // Optional - only available to quiz creators or after completion
   question_number: number;
+  created_at?: string;
+}
+
+// Interface for quiz results with answers (used after completion)
+interface QuizResult extends QuizQuestion {
+  correct_answer: string;
+  user_answer: string;
+  is_correct: boolean;
 }
 interface QuizAttempt {
+  id?: string;
   answers: Record<string, string>;
   score: number;
   total_questions: number;
+  resultsData?: any[]; // Results with correct answers from secure function
 }
 export default function Quizzes() {
   const {
@@ -191,11 +201,12 @@ export default function Quizzes() {
   const startQuiz = async (quiz: Quiz) => {
     setLoading(true);
     try {
-      const {
-        data,
-        error
-      } = await supabase.from('quiz_questions').select('*').eq('quiz_id', quiz.id).order('question_number');
+      // Use secure function that doesn't expose correct answers
+      const { data, error } = await supabase
+        .rpc('get_quiz_questions_for_attempt', { p_quiz_id: quiz.id });
+      
       if (error) throw error;
+      
       setCurrentQuiz(quiz);
       setQuestions((data || []) as QuizQuestion[]);
       setCurrentQuestionIndex(0);
@@ -207,7 +218,7 @@ export default function Quizzes() {
       toast({
         title: "Error loading quiz",
         description: "Failed to load quiz questions",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -405,36 +416,48 @@ export default function Quizzes() {
                 <h3 className="font-retro text-lg glow-blue">Review Answers:</h3>
                 <ScrollArea className="h-96">
                   <div className="space-y-4">
-                    {questions.map((question, index) => {
-                    const userAnswer = results.answers[question.id];
-                    const isCorrect = userAnswer === question.correct_answer;
-                    return <div key={question.id} className="p-4 border border-border rounded-lg">
+                    {results?.resultsData?.map((resultItem: any, index: number) => {
+                      const isCorrect = resultItem.is_correct;
+                      const userAnswer = resultItem.user_answer;
+                      const correctAnswer = resultItem.correct_answer;
+                      
+                      return (
+                        <div key={resultItem.id} className="p-4 border border-border rounded-lg">
                           <div className="flex items-start gap-2 mb-2">
-                            {isCorrect ? <CheckCircle className="w-5 h-5 text-success mt-1" /> : <XCircle className="w-5 h-5 text-destructive mt-1" />}
+                            {isCorrect ? (
+                              <CheckCircle className="w-5 h-5 text-success mt-1" />
+                            ) : (
+                              <XCircle className="w-5 h-5 text-destructive mt-1" />
+                            )}
                             <div className="flex-1">
                               <p className="font-retro text-sm font-bold">
                                 Question {index + 1}
                               </p>
                               <p className="font-retro text-sm mb-2">
-                                {question.question_text}
+                                {resultItem.question_text}
                               </p>
                               <div className="space-y-1 text-xs">
-                                {!isCorrect && <>
+                                {!isCorrect && (
+                                  <>
                                     <p className="font-retro text-destructive">
-                                      Your answer: {userAnswer}. {question[`option_${userAnswer?.toLowerCase()}` as keyof QuizQuestion]}
+                                      Your answer: {userAnswer}. {resultItem[`option_${userAnswer?.toLowerCase()}`]}
                                     </p>
                                     <p className="font-retro text-success">
-                                      Correct answer: {question.correct_answer}. {question[`option_${question.correct_answer.toLowerCase()}` as keyof QuizQuestion]}
+                                      Correct answer: {correctAnswer}. {resultItem[`option_${correctAnswer.toLowerCase()}`]}
                                     </p>
-                                  </>}
-                                {isCorrect && <p className="font-retro text-success">
-                                    Correct! {question.correct_answer}. {question[`option_${question.correct_answer.toLowerCase()}` as keyof QuizQuestion]}
-                                  </p>}
+                                  </>
+                                )}
+                                {isCorrect && (
+                                  <p className="font-retro text-success">
+                                    Correct! {correctAnswer}. {resultItem[`option_${correctAnswer.toLowerCase()}`]}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           </div>
-                        </div>;
-                  })}
+                        </div>
+                      );
+                    })}
                   </div>
                 </ScrollArea>
               </div>
