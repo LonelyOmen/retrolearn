@@ -61,7 +61,18 @@ export default function Home() {
         {/* Header */}
         <header className="text-center py-8 relative">
           {/* Auth Section */}
-          <div className="absolute top-0 right-0">
+          <div className="absolute top-0 right-0 flex items-center gap-3">
+            {user && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => navigate('/user-guide')}
+                className="font-retro text-xs text-muted-foreground hover:text-primary"
+              >
+                <HelpCircle className="w-3 h-3 mr-1" />
+                GUIDE
+              </Button>
+            )}
             {user ? <div className="flex items-center gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
@@ -226,7 +237,7 @@ export default function Home() {
             </div>
 
             {/* Secondary Features Grid */}
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {/* My Notes */}
               <Card className="group hover:shadow-neon transition-all duration-500 border-2 border-secondary bg-card rounded-xl scanlines hover:scale-105 animate-fade-in">
                 <CardHeader className="text-center pb-4">
@@ -326,32 +337,6 @@ export default function Home() {
                   >
                     <Search className="w-4 h-4 mr-2" />
                     EXPLORE TOPICS
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* User Guide */}
-              <Card className="group hover:shadow-neon transition-all duration-500 border-2 border-primary bg-card rounded-xl scanlines hover:scale-105 animate-fade-in">
-                <CardHeader className="text-center pb-4">
-                  <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-all duration-300">
-                    <HelpCircle className="w-8 h-8 text-primary group-hover:scale-110 group-hover:rotate-6 transition-all duration-300" />
-                  </div>
-                  <CardTitle className="font-retro text-lg glow-text group-hover:glow-blue transition-all duration-300">
-                    USER GUIDE
-                  </CardTitle>
-                  <CardDescription className="font-retro text-muted-foreground text-sm">
-                    Interactive tutorial for all features
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="text-center">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => navigate('/user-guide')}
-                    className="font-retro group-hover:bg-primary/20 transition-all duration-300 w-full text-sm"
-                  >
-                    <HelpCircle className="w-4 h-4 mr-2" />
-                    START GUIDE
                     <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
                   </Button>
                 </CardContent>
