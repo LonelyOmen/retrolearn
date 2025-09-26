@@ -31,8 +31,8 @@ serve(async (req) => {
     
     console.log('Processing note:', { noteId, contentLength: content?.length, enhanceWithInternet, imagesCount: images?.length });
 
-    if (!noteId || !content) {
-      throw new Error('Note ID and content are required');
+    if (!noteId || (!content && (!images || images.length === 0))) {
+      throw new Error('Note ID and either content or images are required');
     }
 
     // Initialize Supabase client
@@ -117,7 +117,7 @@ serve(async (req) => {
     
     const prompt = `You are an expert educator creating comprehensive study materials. Analyze the provided text notes and any images to create:
 1. A clear, structured summary (include information from both text and images)
-2. Key points (5-8 bullet points covering content from both sources)
+2. Key points (5-8 bullet points covering content from both sources)  
 3. Flashcards (8-12 cards with front/back, incorporating visual and text content)
 4. Q&A pairs (6-10 questions with detailed answers based on all provided content)
 
@@ -131,8 +131,7 @@ Format your response as JSON with this structure:
 
 Make the content educational, engaging, and comprehensive. If images are provided, analyze them and incorporate their content into the study materials.
 
-Original Notes:
-${content}${additionalContext ? `\n\nAdditional Research Context:${additionalContext}` : ''}`;
+${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze the images only.'}${additionalContext ? `\n\nAdditional Research Context:${additionalContext}` : ''}`;
 
     // Prepare the content array for multimodal input
     const contentParts: any[] = [{ text: prompt }];
