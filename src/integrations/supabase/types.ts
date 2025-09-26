@@ -438,6 +438,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_guide_progress: {
+        Row: {
+          completed_steps: Json
+          created_at: string
+          current_step: number
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_steps?: Json
+          created_at?: string
+          current_step?: number
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_steps?: Json
+          created_at?: string
+          current_step?: number
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       work_rooms: {
         Row: {
           code: string

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,6 +19,7 @@ import {
   Zap
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserGuideProgress } from "@/hooks/useUserGuideProgress";
 import mascotImage from "@/assets/retro-wizard-mascot.jpg";
 
 interface GuideStep {
@@ -172,39 +173,55 @@ const guideSteps: GuideStep[] = [
 ];
 
 const UserGuide = () => {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const navigate = useNavigate();
   const { user } = useAuth();
+  const {
+    currentStep,
+    completedSteps,
+    isLoading,
+    goToStep,
+    nextStep,
+    prevStep,
+    markStepComplete,
+    forceSave,
+  } = useUserGuideProgress();
 
   const currentGuideStep = guideSteps[currentStep];
   const progress = (currentStep / (guideSteps.length - 1)) * 100;
 
-  const markStepComplete = () => {
-    setCompletedSteps(prev => new Set([...prev, currentStep]));
-  };
-
-  const nextStep = () => {
-    if (currentStep < guideSteps.length - 1) {
-      setCurrentStep(prev => prev + 1);
-    }
-  };
-
-  const prevStep = () => {
-    if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
-    }
-  };
-
-  const goToFeature = () => {
+  const goToFeature = async () => {
     if (currentGuideStep.route) {
+      await forceSave(); // Save before navigating
       navigate(currentGuideStep.route);
     }
   };
 
-  const jumpToStep = (stepIndex: number) => {
-    setCurrentStep(stepIndex);
+  const handleBackHome = async () => {
+    await forceSave(); // Save before going home
+    navigate('/');
   };
+
+  const jumpToStep = (stepIndex: number) => {
+    goToStep(stepIndex);
+  };
+
+  // Save progress when component unmounts
+  useEffect(() => {
+    return () => {
+      forceSave();
+    };
+  }, [forceSave]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-terminal p-4 scanlines flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="font-retro text-primary">Loading your progress...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-terminal p-4 scanlines">
@@ -215,7 +232,7 @@ const UserGuide = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate('/')}
+              onClick={handleBackHome}
               className="font-retro"
             >
               <ArrowLeft className="w-4 h-4 mr-1" />
