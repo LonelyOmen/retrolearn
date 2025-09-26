@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserGuideProgress } from "@/hooks/useUserGuideProgress";
+import { useToast } from "@/hooks/use-toast";
 import mascotImage from "@/assets/retro-wizard-mascot.jpg";
 
 interface GuideStep {
@@ -36,12 +37,12 @@ interface GuideStep {
 const guideSteps: GuideStep[] = [
   {
     id: "welcome",
-    title: "Welcome to StudyWizard",
+    title: "Welcome to Retro Learn",
     description: "Your AI-powered learning companion that transforms messy notes into organized study materials!",
     icon: Sparkles,
     interactive: false,
     tasks: ["Click 'Start Interactive Tour' to begin your journey"],
-    tips: ["This guide will teach you everything about StudyWizard", "You can navigate at your own pace"]
+    tips: ["This guide will teach you everything about Retro Learn", "You can navigate at your own pace"]
   },
   {
     id: "dashboard",
@@ -155,12 +156,12 @@ const guideSteps: GuideStep[] = [
   },
   {
     id: "mastery",
-    title: "You're Now a StudyWizard Master!",
+    title: "You're Now a Retro Learn Master!",
     description: "Congratulations! You've learned all the key features. Ready to transform your learning?",
     icon: Star,
     interactive: false,
     tasks: [
-      "Start using StudyWizard for your real studies",
+      "Start using Retro Learn for your real studies",
       "Experiment with different note types",
       "Share your experience with others"
     ],
@@ -175,6 +176,7 @@ const guideSteps: GuideStep[] = [
 const UserGuide = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
   const {
     currentStep,
     completedSteps,
@@ -203,6 +205,39 @@ const UserGuide = () => {
 
   const jumpToStep = (stepIndex: number) => {
     goToStep(stepIndex);
+  };
+
+  const handleFinishGuide = async () => {
+    await forceSave(); // Save final progress
+    // Mark the final step as complete if not already
+    if (!completedSteps.has(currentStep)) {
+      markStepComplete();
+      // Small delay to ensure the completion is saved
+      setTimeout(async () => {
+        await forceSave();
+        toast({
+          title: "🎉 Congratulations!",
+          description: "You've completed the Retro Learn guide! You're now ready to master all features.",
+          duration: 5000,
+        });
+        navigate('/');
+      }, 1000);
+    } else {
+      toast({
+        title: "🎉 Welcome Back!",
+        description: "You've already mastered Retro Learn. Time to put your skills to use!",
+        duration: 3000,
+      });
+      navigate('/');
+    }
+  };
+
+  const handleNextStep = () => {
+    if (currentStep === guideSteps.length - 1) {
+      handleFinishGuide();
+    } else {
+      nextStep();
+    }
   };
 
   // Save progress when component unmounts
@@ -414,11 +449,11 @@ const UserGuide = () => {
 
             <Button
               variant={currentStep === guideSteps.length - 1 ? "wizard" : "outline"}
-              onClick={nextStep}
-              disabled={currentStep === guideSteps.length - 1}
+              onClick={handleNextStep}
+              disabled={false}
               className="font-retro"
             >
-              {currentStep === guideSteps.length - 1 ? "Finish Guide" : "Next Step"}
+              {currentStep === guideSteps.length - 1 ? "🎉 FINISH GUIDE & GO HOME" : "Next Step"}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
