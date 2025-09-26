@@ -65,25 +65,29 @@ serve(async (req) => {
       return response.json();
     };
 
-    // Shorter, more focused prompt to avoid token limits
-    const geminiPrompt = `Create educational content for "${topic}" in JSON format:
+    // Topic-specific prompt for generating relevant learning tasks
+    const geminiPrompt = `Generate learning content for "${topic}". Create specific, actionable tasks related to ${topic}.
 
 {
-  "overview": "Brief 1-2 paragraph overview of ${topic}",
+  "overview": "Brief overview of ${topic} (max 150 words)",
   "tips": [
-    "5 practical learning tips as short strings"
+    "Tip 1 specific to ${topic}",
+    "Tip 2 specific to ${topic}",
+    "Tip 3 specific to ${topic}",
+    "Tip 4 specific to ${topic}",
+    "Tip 5 specific to ${topic}"
   ],
   "learningSteps": [
     {
       "id": "step-1",
-      "title": "Step Title",
-      "description": "Brief task description",
+      "title": "Task title specific to ${topic}",
+      "description": "Specific action for ${topic}",
       "completed": false
     }
   ]
 }
 
-Generate 7-10 progressive learning steps. Keep all text concise. Return valid JSON only.`;
+Create 8 progressive learning steps that are specific to ${topic}. Each step should be a concrete task someone can do to learn ${topic}. Return only valid JSON.`;
 
     console.log('Calling Gemini API...');
     let geminiData;
@@ -161,25 +165,92 @@ Generate 7-10 progressive learning steps. Keep all text concise. Return valid JS
       console.error('Finish reason:', geminiData.candidates?.[0]?.finishReason);
       
       // Enhanced fallback content with topic-specific tasks
+      const topicLower = topic.toLowerCase();
+      const generateTopicSpecificSteps = (topic: string) => {
+        const commonPatterns = {
+          programming: [
+            { title: "Set up development environment", description: `Install necessary tools and IDE for ${topic}` },
+            { title: "Write your first program", description: `Create a simple "Hello World" program in ${topic}` },
+            { title: "Learn basic syntax", description: `Study variables, functions, and control structures in ${topic}` },
+            { title: "Practice with exercises", description: `Complete coding challenges and exercises in ${topic}` },
+            { title: "Build a small project", description: `Create a practical application using ${topic}` },
+            { title: "Debug and test code", description: `Learn debugging techniques and testing in ${topic}` },
+            { title: "Explore frameworks", description: `Investigate popular frameworks and libraries for ${topic}` },
+            { title: "Join the community", description: `Participate in ${topic} forums and contribute to projects` }
+          ],
+          design: [
+            { title: "Learn design principles", description: `Study color theory, typography, and layout in ${topic}` },
+            { title: "Practice with tools", description: `Get familiar with design software for ${topic}` },
+            { title: "Study examples", description: `Analyze successful ${topic} examples and case studies` },
+            { title: "Create mockups", description: `Design wireframes and prototypes for ${topic}` },
+            { title: "Get feedback", description: `Share your ${topic} work and gather constructive criticism` },
+            { title: "Iterate and improve", description: `Refine your ${topic} skills based on feedback` },
+            { title: "Build a portfolio", description: `Showcase your best ${topic} projects` },
+            { title: "Stay updated", description: `Follow ${topic} trends and emerging techniques` }
+          ],
+          language: [
+            { title: "Learn basic vocabulary", description: `Master essential words and phrases in ${topic}` },
+            { title: "Practice pronunciation", description: `Work on speaking and accent in ${topic}` },
+            { title: "Study grammar rules", description: `Understand sentence structure and grammar in ${topic}` },
+            { title: "Listen actively", description: `Consume ${topic} media like podcasts and videos` },
+            { title: "Practice conversation", description: `Find speaking partners for ${topic} practice` },
+            { title: "Read regularly", description: `Read books, articles, and news in ${topic}` },
+            { title: "Write daily", description: `Keep a journal or blog in ${topic}` },
+            { title: "Take a proficiency test", description: `Assess your ${topic} level with official tests` }
+          ],
+          science: [
+            { title: "Understand fundamentals", description: `Learn basic concepts and terminology in ${topic}` },
+            { title: "Study key theories", description: `Explore major theories and principles of ${topic}` },
+            { title: "Conduct experiments", description: `Perform hands-on experiments related to ${topic}` },
+            { title: "Analyze data", description: `Learn to collect and interpret ${topic} data` },
+            { title: "Read research papers", description: `Study current research and findings in ${topic}` },
+            { title: "Use scientific tools", description: `Get familiar with equipment and software for ${topic}` },
+            { title: "Present findings", description: `Practice communicating ${topic} concepts clearly` },
+            { title: "Apply knowledge", description: `Use ${topic} principles to solve real-world problems` }
+          ]
+        };
+
+        // Determine topic category and return appropriate steps
+        if (topicLower.includes('programming') || topicLower.includes('coding') || topicLower.includes('javascript') || topicLower.includes('python') || topicLower.includes('java') || topicLower.includes('react') || topicLower.includes('web development')) {
+          return commonPatterns.programming;
+        } else if (topicLower.includes('design') || topicLower.includes('ui') || topicLower.includes('ux') || topicLower.includes('graphic') || topicLower.includes('photography') || topicLower.includes('art')) {
+          return commonPatterns.design;
+        } else if (topicLower.includes('language') || topicLower.includes('english') || topicLower.includes('spanish') || topicLower.includes('french') || topicLower.includes('german') || topicLower.includes('chinese') || topicLower.includes('japanese')) {
+          return commonPatterns.language;
+        } else if (topicLower.includes('science') || topicLower.includes('physics') || topicLower.includes('chemistry') || topicLower.includes('biology') || topicLower.includes('mathematics') || topicLower.includes('math')) {
+          return commonPatterns.science;
+        } else {
+          // Generic but topic-specific fallback
+          return [
+            { title: `${topic} Fundamentals`, description: `Master the basic concepts and principles of ${topic}` },
+            { title: `${topic} Terminology`, description: `Learn key terms and vocabulary specific to ${topic}` },
+            { title: `${topic} Practice`, description: `Apply ${topic} concepts through hands-on exercises` },
+            { title: `${topic} Tools`, description: `Get familiar with essential tools and resources for ${topic}` },
+            { title: `${topic} Community`, description: `Connect with other ${topic} learners and experts` },
+            { title: `${topic} Projects`, description: `Work on practical projects to deepen ${topic} understanding` },
+            { title: `${topic} Advanced Topics`, description: `Explore more complex aspects of ${topic}` },
+            { title: `${topic} Mastery`, description: `Achieve proficiency and teach others about ${topic}` }
+          ];
+        }
+      };
+
+      const topicSteps = generateTopicSpecificSteps(topic);
+      
       geminiResult = {
-        overview: `${topic} is a fascinating subject that offers valuable learning opportunities. This field encompasses various concepts and principles that can benefit learners at different levels. Understanding ${topic} requires dedication, practice, and a structured approach to build expertise progressively.`,
+        overview: `${topic} is a valuable subject that offers diverse learning opportunities and practical applications. Understanding ${topic} requires a structured approach, starting with fundamentals and progressively building expertise through practice and real-world application.`,
         tips: [
-          `Start with the fundamentals of ${topic} to build a solid foundation`,
-          `Practice regularly and apply concepts through hands-on exercises`,
-          `Join communities and connect with other ${topic} enthusiasts`,
-          `Use multiple learning resources to gain different perspectives`,
-          `Set specific goals and track your progress in ${topic}`
+          `Start with the core fundamentals of ${topic} to build a solid foundation`,
+          `Practice ${topic} regularly through hands-on exercises and projects`,
+          `Join ${topic} communities to learn from experienced practitioners`,
+          `Use multiple learning resources to gain comprehensive ${topic} knowledge`,
+          `Set specific, measurable goals for your ${topic} learning journey`
         ],
-        learningSteps: [
-          { id: "step-1", title: `${topic} Basics`, description: `Learn fundamental concepts and terminology of ${topic}`, completed: false },
-          { id: "step-2", title: "Core Principles", description: `Understand the main principles and theories behind ${topic}`, completed: false },
-          { id: "step-3", title: "Practical Application", description: `Apply your knowledge through exercises and practice in ${topic}`, completed: false },
-          { id: "step-4", title: "Intermediate Concepts", description: `Explore more complex topics and advanced concepts in ${topic}`, completed: false },
-          { id: "step-5", title: "Hands-on Projects", description: `Work on real projects to deepen your understanding of ${topic}`, completed: false },
-          { id: "step-6", title: "Advanced Techniques", description: `Master advanced methods and best practices in ${topic}`, completed: false },
-          { id: "step-7", title: "Problem Solving", description: `Develop problem-solving skills specific to ${topic}`, completed: false },
-          { id: "step-8", title: "Community Engagement", description: `Share knowledge and learn from the ${topic} community`, completed: false }
-        ]
+        learningSteps: topicSteps.map((step, index) => ({
+          id: `step-${index + 1}`,
+          title: step.title,
+          description: step.description,
+          completed: false
+        }))
       };
     }
 
