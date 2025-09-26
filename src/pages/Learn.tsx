@@ -331,13 +331,24 @@ const Learn = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       {/* Back button - positioned absolutely */}
-      <div className="absolute top-6 left-6 z-10">
-        <Link to="/">
+      <div className="absolute top-6 left-6 z-10 flex items-center gap-2">
+        <Link to="/" onClick={autoSaveProgress}>
           <Button variant="outline" size="sm" className="gap-2 animate-fade-in">
             <ArrowLeft className="h-4 w-4" />
             Back to Home
           </Button>
         </Link>
+        {result && user && (
+          <Button
+            onClick={autoSaveProgress}
+            variant="outline"
+            size="sm"
+            className="gap-2 animate-fade-in"
+            title="Save current progress"
+          >
+            <Save className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {/* Main Content */}
