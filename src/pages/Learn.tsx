@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Search, Loader2, ExternalLink, Users, Video, Image, Sparkles } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowLeft, Search, Loader2, ExternalLink, Users, Video, Image, Sparkles, Play, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -45,7 +46,27 @@ const Learn = () => {
   const [topic, setTopic] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<LearnResult | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<{ title: string; url: string; } | null>(null);
   const { toast } = useToast();
+
+  // Extract YouTube video ID from URL
+  const getYouTubeVideoId = (url: string) => {
+    const regex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+  };
+
+  // Get YouTube thumbnail URL
+  const getYouTubeThumbnail = (url: string) => {
+    const videoId = getYouTubeVideoId(url);
+    return videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : null;
+  };
+
+  // Get YouTube embed URL
+  const getYouTubeEmbedUrl = (url: string) => {
+    const videoId = getYouTubeVideoId(url);
+    return videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1` : null;
+  };
 
   const handleSearch = async (e?: React.FormEvent, searchTopic?: string) => {
     if (e) e.preventDefault();
@@ -259,35 +280,60 @@ const Learn = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        {result.videos.map((video, index) => (
-                          <a 
-                            key={index}
-                            href={video.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="block group"
-                          >
-                            <div className="flex gap-3 p-3 rounded-lg hover:bg-muted/20 transition-colors">
-                              <div className="w-20 h-14 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:from-primary/30 group-hover:to-secondary/30 transition-colors">
-                                <Video className="w-6 h-6 text-primary" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-medium text-foreground text-sm leading-tight mb-1 line-clamp-2 group-hover:text-primary transition-colors">
-                                  {video.title}
-                                </h4>
-                                <p className="text-xs text-muted-foreground mb-1">
-                                  {video.description.split(' ').slice(0, 3).join(' ')}...
-                                </p>
-                                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                  <span>Educational Content</span>
-                                  <span className="bg-primary/20 px-2 py-1 rounded text-primary font-mono">
-                                    {Math.floor(Math.random() * 15) + 5}:{String(Math.floor(Math.random() * 60)).padStart(2, '0')}
-                                  </span>
+                        {result.videos.map((video, index) => {
+                          const thumbnail = getYouTubeThumbnail(video.url);
+                          const videoId = getYouTubeVideoId(video.url);
+                          
+                          return (
+                            <div 
+                              key={index}
+                              onClick={() => setSelectedVideo(video)}
+                              className="block group cursor-pointer"
+                            >
+                              <div className="flex gap-3 p-3 rounded-lg hover:bg-muted/20 transition-colors">
+                                <div className="relative w-20 h-14 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:from-primary/30 group-hover:to-secondary/30 transition-colors overflow-hidden">
+                                  {thumbnail && videoId ? (
+                                    <>
+                                      <img 
+                                        src={thumbnail} 
+                                        alt={video.title}
+                                        className="w-full h-full object-cover rounded-lg"
+                                        onError={(e) => {
+                                          const target = e.target as HTMLImageElement;
+                                          target.style.display = 'none';
+                                        }}
+                                      />
+                                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:bg-black/40 transition-colors">
+                                        <Play className="w-4 h-4 text-white drop-shadow-lg" />
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Video className="w-6 h-6 text-primary" />
+                                      <div className="absolute inset-0 flex items-center justify-center">
+                                        <Play className="w-4 h-4 text-primary/70" />
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-medium text-foreground text-sm leading-tight mb-1 line-clamp-2 group-hover:text-primary transition-colors">
+                                    {video.title}
+                                  </h4>
+                                  <p className="text-xs text-muted-foreground mb-1">
+                                    {video.description.split(' ').slice(0, 3).join(' ')}...
+                                  </p>
+                                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                    <span>Educational Content</span>
+                                    <span className="bg-primary/20 px-2 py-1 rounded text-primary font-mono">
+                                      {Math.floor(Math.random() * 15) + 5}:{String(Math.floor(Math.random() * 60)).padStart(2, '0')}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </a>
-                        ))}
+                          );
+                        })}
                       </div>
                     </CardContent>
                   </Card>
@@ -331,6 +377,58 @@ const Learn = () => {
             </div>
           </div>
         )}
+
+        {/* Video Player Modal */}
+        <Dialog open={!!selectedVideo} onOpenChange={() => setSelectedVideo(null)}>
+          <DialogContent className="max-w-4xl w-full p-0 bg-background border-primary/20">
+            <DialogHeader className="p-6 pb-0">
+              <div className="flex items-center justify-between">
+                <DialogTitle className="text-xl font-semibold text-foreground pr-8">
+                  {selectedVideo?.title}
+                </DialogTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedVideo(null)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </DialogHeader>
+            <div className="px-6 pb-6">
+              {selectedVideo && getYouTubeEmbedUrl(selectedVideo.url) && (
+                <div className="aspect-video w-full rounded-lg overflow-hidden bg-black">
+                  <iframe
+                    src={getYouTubeEmbedUrl(selectedVideo.url) || ''}
+                    title={selectedVideo.title}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              )}
+              {selectedVideo && !getYouTubeEmbedUrl(selectedVideo.url) && (
+                <div className="aspect-video w-full rounded-lg bg-muted/20 flex items-center justify-center">
+                  <div className="text-center space-y-4">
+                    <Video className="h-12 w-12 text-muted-foreground mx-auto" />
+                    <div>
+                      <p className="text-foreground font-medium">Video not available for embedding</p>
+                      <p className="text-muted-foreground text-sm">This video can only be watched on YouTube</p>
+                      <Button
+                        onClick={() => window.open(selectedVideo?.url, '_blank')}
+                        className="mt-4"
+                        variant="outline"
+                      >
+                        Watch on YouTube <ExternalLink className="h-4 w-4 ml-2" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
