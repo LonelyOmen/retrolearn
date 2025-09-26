@@ -27,9 +27,9 @@ serve(async (req) => {
   let requestBody: any;
   try {
     requestBody = await req.json();
-    const { noteId, content, enhanceWithInternet = false } = requestBody;
+    const { noteId, content, enhanceWithInternet = false, images = [] } = requestBody;
     
-    console.log('Processing note:', { noteId, contentLength: content?.length, enhanceWithInternet });
+    console.log('Processing note:', { noteId, contentLength: content?.length, enhanceWithInternet, imagesCount: images?.length });
 
     if (!noteId || !content) {
       throw new Error('Note ID and content are required');
@@ -115,19 +115,11 @@ serve(async (req) => {
     // Step 2: Generate comprehensive study materials using Gemini
     console.log('Generating study materials...');
     
-    const studyResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${geminiApiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `You are an expert educator creating comprehensive study materials. Create:
-1. A clear, structured summary
-2. Key points (5-8 bullet points)
-3. Flashcards (8-12 cards with front/back)
-4. Q&A pairs (6-10 questions with detailed answers)
+    const prompt = `You are an expert educator creating comprehensive study materials. Analyze the provided text notes and any images to create:
+1. A clear, structured summary (include information from both text and images)
+2. Key points (5-8 bullet points covering content from both sources)
+3. Flashcards (8-12 cards with front/back, incorporating visual and text content)
+4. Q&A pairs (6-10 questions with detailed answers based on all provided content)
 
 Format your response as JSON with this structure:
 {
@@ -137,11 +129,35 @@ Format your response as JSON with this structure:
   "qa": [{"question": "question text", "answer": "detailed answer"}, ...]
 }
 
-Make the content educational, engaging, and comprehensive.
+Make the content educational, engaging, and comprehensive. If images are provided, analyze them and incorporate their content into the study materials.
 
 Original Notes:
-${content}${additionalContext ? `\n\nAdditional Research Context:${additionalContext}` : ''}`
-          }]
+${content}${additionalContext ? `\n\nAdditional Research Context:${additionalContext}` : ''}`;
+
+    // Prepare the content array for multimodal input
+    const contentParts: any[] = [{ text: prompt }];
+    
+    // Add images if provided
+    if (images && images.length > 0) {
+      console.log(`Including ${images.length} image(s) in processing...`);
+      images.forEach((image: any) => {
+        contentParts.push({
+          inlineData: {
+            data: image.data,
+            mimeType: image.mimeType
+          }
+        });
+      });
+    }
+    
+    const studyResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${geminiApiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: contentParts
         }],
         generationConfig: {
           temperature: 0.7,
@@ -168,9 +184,7 @@ ${content}${additionalContext ? `\n\nAdditional Research Context:${additionalCon
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{
-              parts: [{
-                text: `You are an expert educator creating comprehensive study materials. Create:\n1. A clear, structured summary\n2. Key points (5-8 bullet points)\n3. Flashcards (8-12 cards with front/back)\n4. Q&A pairs (6-10 questions with detailed answers)\n\nFormat your response as JSON with this structure:\n{\n  "summary": "detailed summary text",\n  "keyPoints": ["point 1", "point 2", ...],\n  "flashcards": [{"front": "question", "back": "answer"}, ...],\n  "qa": [{"question": "question text", "answer": "detailed answer"}, ...]\n}\n\nMake the content educational, engaging, and comprehensive.\n\nOriginal Notes:\n${content}${additionalContext ? `\n\nAdditional Research Context:${additionalContext}` : ''}`
-              }]
+              parts: contentParts
             }],
             generationConfig: { temperature: 0.7, maxOutputTokens: 3500 }
           })

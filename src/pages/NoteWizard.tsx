@@ -23,7 +23,7 @@ const NoteWizard = () => {
   const navigate = useNavigate();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const handleProcessNotes = async (notes: string) => {
+  const handleProcessNotes = async (notes: string, images?: Array<{data: string, mimeType: string}>) => {
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -52,10 +52,11 @@ const NoteWizard = () => {
 
       // Then call the edge function to process it
       const { data, error } = await supabase.functions.invoke('process-notes', {
-        body: {
-          noteId: newNote.id,
-          content: notes,
-          enhanceWithInternet: enhanceWithInternet
+        body: { 
+          noteId: newNote.id, 
+          content: notes, 
+          enhanceWithInternet: enhanceWithInternet,
+          images: images || []
         }
       });
 

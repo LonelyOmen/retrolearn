@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
 interface NotesInputProps {
-  onProcessNotes: (notes: string) => void;
+  onProcessNotes: (notes: string, images?: Array<{data: string, mimeType: string}>) => void;
   isProcessing: boolean;
   enhanceWithInternet?: boolean;
   onToggleInternet?: (enabled: boolean) => void;
@@ -22,13 +22,13 @@ export const NotesInput = ({
   onToggleInternet 
 }: NotesInputProps) => {
   const [notes, setNotes] = useState("");
-  const [isExtracting, setIsExtracting] = useState(false);
+  const [images, setImages] = useState<Array<{data: string, mimeType: string, name: string}>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleSubmit = () => {
-    if (notes.trim()) {
-      onProcessNotes(notes);
+    if (notes.trim() || images.length > 0) {
+      onProcessNotes(notes, images);
     }
   };
 
@@ -66,53 +66,23 @@ export const NotesInput = ({
       return;
     }
 
-    setIsExtracting(true);
-
     try {
       // Convert file to base64
       const reader = new FileReader();
-      reader.onload = async (e) => {
+      reader.onload = (e) => {
         const base64 = e.target?.result as string;
         const base64Data = base64.split(',')[1]; // Remove data URL prefix
         
-        try {
-          const { data, error } = await supabase.functions.invoke('extract-text', {
-            body: {
-              image: base64Data,
-              mimeType: file.type
-            }
-          });
+        setImages(prev => [...prev, {
+          data: base64Data,
+          mimeType: file.type,
+          name: file.name
+        }]);
 
-          if (error) throw error;
-
-          if (data?.success) {
-            const extractedText = data.extractedText;
-            if (extractedText && extractedText !== "No text detected in the image.") {
-              setNotes(prev => prev ? `${prev}\n\n${extractedText}` : extractedText);
-              toast({
-                title: "Text extracted successfully",
-                description: "The text from your image has been added to your notes.",
-              });
-            } else {
-              toast({
-                title: "No text found",
-                description: "No readable text was detected in the image.",
-                variant: "destructive",
-              });
-            }
-          } else {
-            throw new Error(data?.error || 'Failed to extract text');
-          }
-        } catch (error) {
-          console.error('Error extracting text:', error);
-          toast({
-            title: "Extraction failed",
-            description: "Failed to extract text from the image. Please try again.",
-            variant: "destructive",
-          });
-        } finally {
-          setIsExtracting(false);
-        }
+        toast({
+          title: "Image added",
+          description: `${file.name} will be processed with your notes.`,
+        });
       };
 
       reader.readAsDataURL(file);
@@ -123,13 +93,16 @@ export const NotesInput = ({
         description: "Failed to process the image file.",
         variant: "destructive",
       });
-      setIsExtracting(false);
     }
 
     // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -153,13 +126,36 @@ export const NotesInput = ({
             variant="terminal" 
             size="sm" 
             onClick={handleImageScan}
-            disabled={isProcessing || isExtracting}
+            disabled={isProcessing}
             className="text-xs"
           >
             <Image className="w-4 h-4" />
-            {isExtracting ? 'SCANNING...' : 'SCAN IMAGE'}
+            ADD IMAGE
           </Button>
         </div>
+
+        {/* Display added images */}
+        {images.length > 0 && (
+          <div className="space-y-2">
+            <Label className="text-sm font-retro">Added Images:</Label>
+            <div className="flex flex-wrap gap-2">
+              {images.map((image, index) => (
+                <div key={index} className="flex items-center gap-2 bg-muted/50 px-2 py-1 rounded border">
+                  <Image className="w-4 h-4" />
+                  <span className="text-xs truncate max-w-[100px]">{image.name}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeImage(index)}
+                    className="h-auto p-1 text-destructive hover:text-destructive"
+                  >
+                    ×
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="relative">
           <Textarea
@@ -198,7 +194,7 @@ export const NotesInput = ({
             variant="wizard" 
             size="lg" 
             onClick={handleSubmit}
-            disabled={!notes.trim() || isProcessing}
+            disabled={(!notes.trim() && images.length === 0) || isProcessing}
             className="flex-1"
           >
             <Sparkles className="w-5 h-5" />
