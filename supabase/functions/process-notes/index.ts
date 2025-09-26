@@ -269,8 +269,9 @@ ${content}${additionalContext ? `\n\nAdditional Research Context:${additionalCon
       console.error('Failed to update note status to error:', updateError);
     }
 
+    const errorMessage = error instanceof Error ? error.message : 'An error occurred during processing';
     return new Response(JSON.stringify({ 
-      error: error.message || 'An error occurred during processing',
+      error: errorMessage,
       success: false 
     }), {
       status: 500,

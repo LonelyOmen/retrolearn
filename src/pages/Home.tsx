@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
 import mascotImage from '@/assets/retro-wizard-mascot.jpg';
-import { Sparkles, Brain, FileText, Users, Wand2, User, LogOut, Mail, Calendar, Hash, ArrowRight, Zap, Trophy } from 'lucide-react';
+import { Sparkles, Brain, FileText, Users, Wand2, User, LogOut, Mail, Calendar, Hash, ArrowRight, Zap, Trophy, Search } from 'lucide-react';
 import { AuthModal } from '@/components/AuthModal';
 export default function Home() {
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -185,7 +185,7 @@ export default function Home() {
               <User className="w-4 h-4 mr-2" />
               SIGN IN TO CONTINUE
             </Button>
-          </div> : <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          </div> : <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
             {/* Retro Note Wizard */}
             <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-primary bg-card scanlines">
               <CardHeader className="text-center pb-4">
@@ -201,7 +201,7 @@ export default function Home() {
                 <Button variant="outline" onClick={e => {
               e.stopPropagation();
               navigate('/note-wizard');
-            }} className="font-retro group-hover:bg-primary/20 transition-colors my-0 py-0 mx-0 px-0">
+            }} className="font-retro group-hover:bg-primary/20 transition-colors my-0 py-0 mx-0 px-0 w-full">
                   <Sparkles className="w-4 h-4 mr-2" />
                   START TRANSFORMING
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -223,7 +223,7 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button className="font-retro group-hover:bg-secondary/20 transition-colors" variant="outline" onClick={e => {
+                <Button className="font-retro group-hover:bg-secondary/20 transition-colors w-full" variant="outline" onClick={e => {
               e.stopPropagation();
               navigate('/notes');
             }}>
@@ -248,7 +248,7 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button className="font-retro group-hover:bg-accent/20 transition-colors" variant="outline" onClick={e => {
+                <Button className="font-retro group-hover:bg-accent/20 transition-colors w-full" variant="outline" onClick={e => {
               e.stopPropagation();
               navigate('/workrooms');
             }}>
@@ -273,12 +273,37 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center">
-                <Button className="font-retro group-hover:bg-warning/20 transition-colors" variant="outline" onClick={e => {
+                <Button className="font-retro group-hover:bg-warning/20 transition-colors w-full" variant="outline" onClick={e => {
               e.stopPropagation();
               navigate('/quizzes');
             }}>
                   <Trophy className="w-4 h-4 mr-2" />
                   START QUIZ
+                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Learn Anything */}
+            <Card className="group hover:shadow-neon transition-all duration-300 border-2 border-destructive bg-card scanlines">
+              <CardHeader className="text-center pb-4">
+                <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-destructive/10 group-hover:bg-destructive/20 transition-colors">
+                  <Search className="w-8 h-8 text-destructive group-hover:scale-110 transition-transform" />
+                </div>
+                <CardTitle className="font-retro text-xl glow-text group-hover:glow-pink transition-all">
+                  LEARN ANYTHING
+                </CardTitle>
+                <CardDescription className="font-retro text-muted-foreground">
+                  Discover comprehensive information about any topic from across the internet
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-center">
+                <Button className="font-retro group-hover:bg-destructive/20 transition-colors w-full" variant="outline" onClick={e => {
+              e.stopPropagation();
+              navigate('/learn');
+            }}>
+                  <Search className="w-4 h-4 mr-2" />
+                  EXPLORE TOPICS
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </CardContent>

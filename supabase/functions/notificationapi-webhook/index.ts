@@ -101,8 +101,8 @@ serve(async (req) => {
               },
               body: JSON.stringify({
                 userId: member.user_id,
-                email: member.profiles?.email,
-                name: member.profiles?.full_name,
+                email: (member.profiles as any)?.email || '',
+                name: (member.profiles as any)?.full_name || 'User',
               }),
             });
           }
@@ -121,7 +121,8 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in notificationapi-webhook:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
