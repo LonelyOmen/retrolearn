@@ -353,54 +353,137 @@ Create 8 progressive learning steps that are specific to ${topic}. Each step sho
       }
     );
 
-    // Fetch Wikipedia articles
-    let wikipediaArticles = [];
+    // Fetch Wikipedia articles with better search terms
+    interface WikipediaArticle {
+      title: string;
+      url: string;
+      description: string;
+      thumbnail: string | null;
+    }
+    
+    let wikipediaArticles: WikipediaArticle[] = [];
     try {
       console.log('Searching Wikipedia articles...');
-      // First, search for articles related to the topic
-      const searchResponse = await fetch(
-        `https://en.wikipedia.org/api/rest_v1/page/search/${encodeURIComponent(topic)}?limit=5`
-      );
+      
+      // Search for main topic and related terms
+      const searchTerms = [
+        topic,
+        `${topic} basics`,
+        `${topic} fundamentals`,
+        `${topic} overview`
+      ];
+      
+      const allArticles: WikipediaArticle[] = [];
+      
+      for (const searchTerm of searchTerms) {
+        try {
+          const searchResponse = await fetch(
+            `https://en.wikipedia.org/api/rest_v1/page/search/${encodeURIComponent(searchTerm)}?limit=3`
+          );
 
-      if (searchResponse.ok) {
-        const searchData = await searchResponse.json();
-        
-        // Get detailed info for each article
-        for (const page of searchData.pages?.slice(0, 3) || []) {
-          try {
-            const summaryResponse = await fetch(
-              `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(page.key)}`
-            );
+          if (searchResponse.ok) {
+            const searchData = await searchResponse.json();
             
-            if (summaryResponse.ok) {
-              const summaryData = await summaryResponse.json();
-              wikipediaArticles.push({
-                title: summaryData.title,
-                url: summaryData.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(page.key)}`,
-                description: summaryData.extract || page.description || `Wikipedia article about ${summaryData.title}`,
-                thumbnail: summaryData.thumbnail?.source || null
-              });
+            // Get detailed info for each article
+            for (const page of searchData.pages?.slice(0, 2) || []) {
+              try {
+                const summaryResponse = await fetch(
+                  `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(page.key)}`
+                );
+                
+                if (summaryResponse.ok) {
+                  const summaryData = await summaryResponse.json();
+                  
+                  // Avoid duplicates
+                  if (!allArticles.some(article => article.title === summaryData.title)) {
+                    allArticles.push({
+                      title: summaryData.title,
+                      url: summaryData.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(page.key)}`,
+                      description: summaryData.extract || page.description || `Wikipedia article about ${summaryData.title}`,
+                      thumbnail: summaryData.thumbnail?.source || null
+                    });
+                  }
+                }
+              } catch (articleError) {
+                console.error(`Error fetching Wikipedia article ${page.key}:`, articleError);
+              }
             }
-          } catch (articleError) {
-            console.error(`Error fetching Wikipedia article ${page.key}:`, articleError);
           }
+        } catch (searchError) {
+          console.error(`Error searching for term "${searchTerm}":`, searchError);
         }
-        console.log(`Found ${wikipediaArticles.length} Wikipedia articles`);
       }
+      
+      wikipediaArticles = allArticles.slice(0, 5); // Take top 5 unique articles
+      console.log(`Found ${wikipediaArticles.length} Wikipedia articles`);
+      
     } catch (error) {
       console.error('Wikipedia API error:', error);
     }
 
-    // Fallback Wikipedia articles if API fails
-    if (wikipediaArticles.length === 0) {
-      wikipediaArticles = [
+    // Enhanced fallback Wikipedia articles if API fails or returns few results
+    if (wikipediaArticles.length < 3) {
+      const topicTerms = topic.toLowerCase().split(' ');
+      const fallbackArticles: WikipediaArticle[] = [
         {
           title: topic,
           url: `https://en.wikipedia.org/wiki/${encodeURIComponent(topic.replace(/\s+/g, '_'))}`,
-          description: `Learn more about ${topic} on Wikipedia`,
+          description: `Comprehensive Wikipedia article about ${topic}`,
+          thumbnail: null
+        },
+        {
+          title: `${topic} - Overview`,
+          url: `https://en.wikipedia.org/wiki/Special:Search/${encodeURIComponent(topic + ' overview')}`,
+          description: `Search results for ${topic} overview and fundamentals`,
+          thumbnail: null
+        },
+        {
+          title: `History of ${topic}`,
+          url: `https://en.wikipedia.org/wiki/Special:Search/${encodeURIComponent('history of ' + topic)}`,
+          description: `Historical context and development of ${topic}`,
           thumbnail: null
         }
       ];
+      
+      // Add topic-specific fallback articles
+      if (topicTerms.includes('programming') || topicTerms.includes('coding')) {
+        fallbackArticles.push({
+          title: "Computer Programming",
+          url: "https://en.wikipedia.org/wiki/Computer_programming",
+          description: "Comprehensive guide to computer programming concepts",
+          thumbnail: null
+        });
+      } else if (topicTerms.includes('cybersecurity') || topicTerms.includes('security')) {
+        fallbackArticles.push(
+          {
+            title: "Computer Security",
+            url: "https://en.wikipedia.org/wiki/Computer_security",
+            description: "Fundamentals of computer and information security",
+            thumbnail: null
+          },
+          {
+            title: "Information Security",
+            url: "https://en.wikipedia.org/wiki/Information_security",
+            description: "Protecting information and information systems",
+            thumbnail: null
+          }
+        );
+      } else if (topicTerms.includes('design') || topicTerms.includes('photography')) {
+        fallbackArticles.push({
+          title: "Design Principles",
+          url: "https://en.wikipedia.org/wiki/Design",
+          description: "Core principles and concepts of design",
+          thumbnail: null
+        });
+      }
+      
+      // Merge existing articles with fallbacks, avoiding duplicates
+      const existingTitles = wikipediaArticles.map(article => article.title.toLowerCase());
+      const uniqueFallbacks = fallbackArticles.filter(
+        fallback => !existingTitles.includes(fallback.title.toLowerCase())
+      );
+      
+      wikipediaArticles = [...wikipediaArticles, ...uniqueFallbacks].slice(0, 5);
     }
 
     // Generate image suggestions using Tavily or fallback
