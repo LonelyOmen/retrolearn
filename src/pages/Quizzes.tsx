@@ -243,32 +243,51 @@ export default function Quizzes() {
   const submitQuiz = async () => {
     if (!currentQuiz || !user) return;
 
-    // Calculate score
-    let score = 0;
-    questions.forEach(question => {
-      if (answers[question.id] === question.correct_answer) {
-        score++;
-      }
-    });
-    const attempt: QuizAttempt = {
-      answers,
-      score,
-      total_questions: questions.length
-    };
     try {
-      // Save attempt to database
-      const {
-        error
-      } = await supabase.from('quiz_attempts').insert({
-        quiz_id: currentQuiz.id,
-        user_id: user.id,
+      // Save attempt to database first
+      const { data: attemptData, error: attemptError } = await supabase
+        .from('quiz_attempts')
+        .insert({
+          quiz_id: currentQuiz.id,
+          user_id: user.id,
+          score: 0, // Will be calculated by the secure function
+          total_questions: questions.length,
+          answers
+        })
+        .select()
+        .single();
+
+      if (attemptError) throw attemptError;
+
+      // Get results with correct answers using secure function
+      const { data: resultsData, error: resultsError } = await supabase
+        .rpc('get_quiz_results_with_answers', { 
+          p_quiz_id: currentQuiz.id,
+          p_attempt_id: attemptData.id 
+        });
+
+      if (resultsError) throw resultsError;
+
+      // Calculate actual score from results
+      const score = (resultsData || []).filter((r: any) => r.is_correct).length;
+
+      // Update the attempt with correct score
+      await supabase
+        .from('quiz_attempts')
+        .update({ score })
+        .eq('id', attemptData.id);
+
+      const attempt: QuizAttempt = {
+        id: attemptData.id,
+        answers,
         score,
         total_questions: questions.length,
-        answers
-      });
-      if (error) throw error;
+        resultsData: resultsData || []
+      };
+
       setResults(attempt);
       setIsCompleted(true);
+      
       toast({
         title: "Quiz completed!",
         description: `You scored ${score} out of ${questions.length}`
