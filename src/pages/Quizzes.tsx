@@ -244,6 +244,15 @@ export default function Quizzes() {
     if (!currentQuiz || !user) return;
 
     try {
+      // Convert answers to question number format expected by database function
+      const formattedAnswers: Record<string, string> = {};
+      questions.forEach((question, index) => {
+        const userAnswer = answers[question.id];
+        if (userAnswer) {
+          formattedAnswers[`q_${question.question_number}`] = userAnswer;
+        }
+      });
+
       // Save attempt to database first
       const { data: attemptData, error: attemptError } = await supabase
         .from('quiz_attempts')
@@ -252,7 +261,7 @@ export default function Quizzes() {
           user_id: user.id,
           score: 0, // Will be calculated by the secure function
           total_questions: questions.length,
-          answers
+          answers: formattedAnswers
         })
         .select()
         .single();
@@ -440,6 +449,16 @@ export default function Quizzes() {
                       const userAnswer = resultItem.user_answer;
                       const correctAnswer = resultItem.correct_answer;
                       
+                      // Get the text for the answers
+                      const getUserAnswerText = () => {
+                        if (!userAnswer) return "No answer";
+                        return resultItem[`option_${userAnswer.toLowerCase()}`] || "Invalid answer";
+                      };
+                      
+                      const getCorrectAnswerText = () => {
+                        return resultItem[`option_${correctAnswer.toLowerCase()}`] || "Unknown";
+                      };
+                      
                       return (
                         <div key={resultItem.id} className="p-4 border border-border rounded-lg">
                           <div className="flex items-start gap-2 mb-2">
@@ -450,7 +469,7 @@ export default function Quizzes() {
                             )}
                             <div className="flex-1">
                               <p className="font-retro text-sm font-bold">
-                                Question {index + 1}
+                                Question {resultItem.question_number}
                               </p>
                               <p className="font-retro text-sm mb-2">
                                 {resultItem.question_text}
@@ -459,16 +478,16 @@ export default function Quizzes() {
                                 {!isCorrect && (
                                   <>
                                     <p className="font-retro text-destructive">
-                                      Your answer: {userAnswer}. {resultItem[`option_${userAnswer?.toLowerCase()}`]}
+                                      Your answer: {userAnswer || "No answer"}. {getUserAnswerText()}
                                     </p>
                                     <p className="font-retro text-success">
-                                      Correct answer: {correctAnswer}. {resultItem[`option_${correctAnswer.toLowerCase()}`]}
+                                      Correct answer: {correctAnswer}. {getCorrectAnswerText()}
                                     </p>
                                   </>
                                 )}
                                 {isCorrect && (
                                   <p className="font-retro text-success">
-                                    Correct! {correctAnswer}. {resultItem[`option_${correctAnswer.toLowerCase()}`]}
+                                    Correct! {correctAnswer}. {getCorrectAnswerText()}
                                   </p>
                                 )}
                               </div>
