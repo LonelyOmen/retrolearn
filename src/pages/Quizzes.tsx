@@ -246,12 +246,14 @@ export default function Quizzes() {
     try {
       // Convert answers to question number format expected by database function
       const formattedAnswers: Record<string, string> = {};
-      questions.forEach((question, index) => {
+      questions.forEach((question) => {
         const userAnswer = answers[question.id];
-        if (userAnswer) {
-          formattedAnswers[`q_${question.question_number}`] = userAnswer;
-        }
+        // Ensure we save answers for all questions, even if no answer was selected
+        formattedAnswers[`q_${question.question_number}`] = userAnswer || '';
       });
+
+      console.log('Formatted answers for database:', formattedAnswers);
+      console.log('Original answers:', answers);
 
       // Save attempt to database first
       const { data: attemptData, error: attemptError } = await supabase
@@ -276,6 +278,8 @@ export default function Quizzes() {
         });
 
       if (resultsError) throw resultsError;
+
+      console.log('Results data from database:', resultsData);
 
       // Calculate actual score from results
       const score = (resultsData || []).filter((r: any) => r.is_correct).length;
@@ -449,14 +453,17 @@ export default function Quizzes() {
                       const userAnswer = resultItem.user_answer;
                       const correctAnswer = resultItem.correct_answer;
                       
+                      console.log('Result item:', resultItem);
+                      console.log('User answer from DB:', userAnswer);
+                      
                       // Get the text for the answers
                       const getUserAnswerText = () => {
-                        if (!userAnswer) return "No answer";
-                        return resultItem[`option_${userAnswer.toLowerCase()}`] || "Invalid answer";
+                        if (!userAnswer || userAnswer === '') return "No answer selected";
+                        return resultItem[`option_${userAnswer.toLowerCase()}`] || `Option ${userAnswer}`;
                       };
                       
                       const getCorrectAnswerText = () => {
-                        return resultItem[`option_${correctAnswer.toLowerCase()}`] || "Unknown";
+                        return resultItem[`option_${correctAnswer.toLowerCase()}`] || `Option ${correctAnswer}`;
                       };
                       
                       return (
@@ -478,7 +485,7 @@ export default function Quizzes() {
                                 {!isCorrect && (
                                   <>
                                     <p className="font-retro text-destructive">
-                                      Your answer: {userAnswer || "No answer"}. {getUserAnswerText()}
+                                      Your answer: {userAnswer ? `${userAnswer}. ${getUserAnswerText()}` : "No answer selected"}
                                     </p>
                                     <p className="font-retro text-success">
                                       Correct answer: {correctAnswer}. {getCorrectAnswerText()}
@@ -487,7 +494,7 @@ export default function Quizzes() {
                                 )}
                                 {isCorrect && (
                                   <p className="font-retro text-success">
-                                    Correct! {correctAnswer}. {getCorrectAnswerText()}
+                                    Correct! {userAnswer}. {getUserAnswerText()}
                                   </p>
                                 )}
                               </div>
