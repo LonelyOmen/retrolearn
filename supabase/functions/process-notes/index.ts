@@ -54,7 +54,7 @@ serve(async (req) => {
       
       try {
         // Extract key topics for research using Gemini
-        const topicsResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+        const topicsResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key=${geminiApiKey}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -165,7 +165,7 @@ ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze th
     };
 
     // Try primary key with Pro model
-    let { res: studyResponse, data: studyData } = await callGemini(geminiApiKey!, 'gemini-1.5-pro');
+    let { res: studyResponse, data: studyData } = await callGemini(geminiApiKey!, 'gemini-1.5-pro-002');
     console.log('Study response status:', studyResponse.status);
     console.log('Study response data:', studyData);
 
@@ -178,8 +178,8 @@ ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze th
 
       // If quota on primary, try secondary key on Pro
       if (quotaLike && geminiApiKeySecondary) {
-        console.log('Trying secondary key on gemini-1.5-pro');
-        const retry = await callGemini(geminiApiKeySecondary, 'gemini-1.5-pro');
+        console.log('Trying secondary key on gemini-1.5-pro-002');
+        const retry = await callGemini(geminiApiKeySecondary, 'gemini-1.5-pro-002');
         studyResponse = retry.res; studyData = retry.data;
         console.log('Secondary key status:', studyResponse.status);
       }
@@ -187,11 +187,11 @@ ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze th
       // If still not OK, try Flash model (prefer secondary if quota-like and available)
       if (!studyResponse.ok) {
         const keyForFlash = quotaLike && geminiApiKeySecondary ? geminiApiKeySecondary : geminiApiKey!;
-        console.log('Attempting fallback to gemini-1.5-flash');
-        let fb = await callGemini(keyForFlash, 'gemini-1.5-flash');
+        console.log('Attempting fallback to gemini-1.5-flash-002');
+        let fb = await callGemini(keyForFlash, 'gemini-1.5-flash-002');
         if (!(fb.res.ok && fb.data.candidates && fb.data.candidates[0]?.content?.parts?.[0]?.text)) {
-          console.log('Flash fallback failed, trying gemini-1.5-flash-8b');
-          fb = await callGemini(keyForFlash, 'gemini-1.5-flash-8b');
+          console.log('Flash fallback failed, trying gemini-2.0-flash-exp');
+          fb = await callGemini(keyForFlash, 'gemini-2.0-flash-exp');
         }
         if (fb.res.ok && fb.data.candidates && fb.data.candidates[0]?.content?.parts?.[0]?.text) {
           studyData = fb.data;
