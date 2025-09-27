@@ -49,16 +49,10 @@ serve(async (req) => {
 
     console.log('Generating quiz for topic:', topic);
 
-    // Generate quiz with Gemini
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `You are a quiz generator. Create exactly 10 multiple choice questions with 4 options each (A, B, C, D). 
+    const geminiApiKeySecondary = Deno.env.get('GEMINI_API_KEY_SECONDARY');
+
+    // Build prompt once
+    const prompt = `You are a quiz generator. Create exactly 10 multiple choice questions with 4 options each (A, B, C, D).
             Each question should be challenging but fair, and cover different aspects of the topic.
             
             Format your response as a JSON object with this exact structure:
@@ -81,22 +75,58 @@ serve(async (req) => {
             - Questions are varied and comprehensive
             - All options are plausible but only one is correct
             
-            Create a quiz about: ${topic}`
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 4000,
-        }
-      }),
-    });
+            Create a quiz about: ${topic}`;
 
-    if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.status}`);
+    const callGemini = async (apiKey: string, model: string) => {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }]}],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 4000,
+            responseMimeType: 'application/json'
+          }
+        })
+      });
+      const data = await res.json();
+      return { res, data } as const;
+    };
+
+    // Try latest fast model first, then fallbacks and secondary key if quota
+    let { res: aiRes, data: aiData } = await callGemini(geminiApiKey!, 'gemini-2.5-flash');
+    if (!aiRes.ok) {
+      const status = aiRes.status;
+      const errMsg: string = aiData?.error?.message || 'Unknown error';
+      const quotaLike = status === 429 || /quota|exceed|rate|insufficient/i.test(errMsg);
+
+      // If quota-like or 5xx, try secondary key on the same model
+      if ((quotaLike || status >= 500) && geminiApiKeySecondary) {
+        console.log('Trying secondary key on gemini-2.5-flash');
+        const retry = await callGemini(geminiApiKeySecondary, 'gemini-2.5-flash');
+        aiRes = retry.res; aiData = retry.data;
+      }
+
+      // If still not OK, try 1.5-flash then 1.5-flash-8b with whichever key available
+      if (!aiRes.ok) {
+        const keyForFlash = geminiApiKeySecondary ?? geminiApiKey!;
+        console.log('Falling back to gemini-1.5-flash');
+        let fb = await callGemini(keyForFlash, 'gemini-1.5-flash');
+        if (!(fb.res.ok && fb.data?.candidates?.[0]?.content?.parts?.[0]?.text)) {
+          console.log('1.5-flash failed, trying gemini-1.5-flash-8b');
+          fb = await callGemini(keyForFlash, 'gemini-1.5-flash-8b');
+        }
+        aiRes = fb.res; aiData = fb.data;
+      }
+
+      if (!aiRes.ok) {
+        console.error('Gemini API error for quiz generation:', { status: aiRes.status, body: aiData });
+        throw new Error(`Gemini API error: ${aiRes.status}`);
+      }
     }
 
-    const data = await response.json();
-    const content = data.candidates[0].content.parts[0].text;
+    const content = aiData?.candidates?.[0]?.content?.parts?.[0]?.text;
     
     console.log('Gemini response:', content);
 
