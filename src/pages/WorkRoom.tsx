@@ -13,11 +13,10 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Send, Users, FileText, Copy, Share, Wifi, WifiOff } from 'lucide-react'
+import { ArrowLeft, Send, Users, FileText, Copy, Share } from 'lucide-react'
 import { Database } from '@/integrations/supabase/types'
 import { useToast } from '@/hooks/use-toast'
 import SharedNoteDialog from '@/components/SharedNoteDialog'
-import NotificationAPIWidget from '@/components/NotificationAPIWidget'
 
 type WorkRoom = Database['public']['Tables']['work_rooms']['Row']
 
@@ -25,7 +24,7 @@ export default function WorkRoom() {
   const { roomId } = useParams()
   const { user } = useAuth()
   const { rooms, getRoomMembers, shareNoteToRoom, getRoomSharedNotes } = useWorkRooms()
-  const { messages, sendMessage, notificationAPI } = useRoomChat(roomId || '')
+  const { messages, sendMessage } = useRoomChat(roomId || '')
   const { notes } = useNotes()
   const { toast } = useToast()
   const navigate = useNavigate()
@@ -184,21 +183,6 @@ export default function WorkRoom() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* NotificationAPI Connection Status */}
-            <div className="flex items-center gap-2">
-              {notificationAPI?.isConnected ? (
-                <>
-                  <Wifi className="h-4 w-4 text-green-500" />
-                  <span className="text-xs text-green-500">Real-time connected</span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="h-4 w-4 text-yellow-500" />
-                  <span className="text-xs text-yellow-500">Connecting...</span>
-                </>
-              )}
-            </div>
-            
             <Badge variant="outline" className="font-mono">
               {room.code}
             </Badge>
@@ -272,11 +256,10 @@ export default function WorkRoom() {
           {/* Sidebar */}
           <div className="space-y-6">
             <Tabs defaultValue="members" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="members">Members</TabsTrigger>
                 <TabsTrigger value="notes">Notes</TabsTrigger>
                 <TabsTrigger value="share">Share</TabsTrigger>
-                <TabsTrigger value="realtime">Real-time</TabsTrigger>
               </TabsList>
 
               <TabsContent value="members" className="space-y-4">
@@ -389,40 +372,6 @@ export default function WorkRoom() {
                 </Card>
               </TabsContent>
 
-              <TabsContent value="realtime" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Real-time Messaging</CardTitle>
-                    <CardDescription>
-                      NotificationAPI integration for instant messaging
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="font-medium">Status:</span>
-                        {notificationAPI?.isConnected ? (
-                          <Badge variant="default" className="bg-green-100 text-green-800">
-                            Connected
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">
-                            Initializing...
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      {roomId && <NotificationAPIWidget roomId={roomId} />}
-                      
-                      <div className="text-xs text-muted-foreground space-y-1">
-                        <p>• Real-time message delivery with NotificationAPI</p>
-                        <p>• Messages stored in Supabase for persistence</p>
-                        <p>• Enhanced with typing indicators and delivery receipts</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
             </Tabs>
           </div>
         </div>

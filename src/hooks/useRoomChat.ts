@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/use-toast'
-import { useNotificationAPI } from '@/hooks/useNotificationAPI'
 import { Database } from '@/integrations/supabase/types'
 
 type RoomMessage = Database['public']['Tables']['room_messages']['Row'] & {
@@ -17,7 +16,6 @@ export function useRoomChat(roomId: string) {
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
   const { toast } = useToast()
-  const notificationAPI = useNotificationAPI(roomId)
 
   // Fetch messages for the room
   const fetchMessages = useCallback(async () => {
@@ -43,7 +41,7 @@ export function useRoomChat(roomId: string) {
             .from('profiles')
             .select('full_name, email')
             .eq('id', userId)
-            .single()
+            .maybeSingle()
           
           if (profileError) {
             console.error('Error fetching profile for user:', userId, profileError)
@@ -78,37 +76,34 @@ export function useRoomChat(roomId: string) {
     }
   }, [roomId, toast])
 
-  // Send a message (using NotificationAPI for real-time delivery)
+  // Send a message (Supabase Realtime will deliver it instantly)
   const sendMessage = async (message: string): Promise<boolean> => {
     if (!user || !roomId || !message.trim()) return false
 
     const trimmed = message.trim()
 
-    // Use NotificationAPI for instant delivery
-    const success = await notificationAPI.sendMessage(trimmed);
-    
-    if (success) {
-      // Optimistic local echo so sender sees it instantly
-      const tempMessage: RoomMessage = {
-        id: `temp-${crypto.randomUUID()}` as any,
-        room_id: roomId as any,
-        user_id: user.id as any,
-        message: trimmed,
-        message_type: 'text',
-        created_at: new Date().toISOString() as any,
-        profiles: undefined,
-      }
-      setMessages(prev => [...prev, tempMessage])
+    try {
+      // Insert directly into Supabase - realtime will handle instant delivery
+      const { error } = await supabase
+        .from('room_messages')
+        .insert({
+          room_id: roomId,
+          user_id: user.id,
+          message: trimmed,
+          message_type: 'text',
+        })
 
-      // Soft refresh from DB shortly after to replace temp with persisted row
-      setTimeout(() => {
-        fetchMessages()
-      }, 300)
-
-      return true;
+      if (error) throw error
+      return true
+    } catch (error) {
+      console.error('Error sending message:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to send message',
+        variant: 'destructive',
+      })
+      return false
     }
-
-    return false;
   }
 
   // Set up real-time subscription for new messages
@@ -135,7 +130,7 @@ export function useRoomChat(roomId: string) {
             .from('profiles')
             .select('full_name, email')
             .eq('id', payload.new.user_id)
-            .single()
+            .maybeSingle()
 
           console.log('Profile for new message:', profile)
           const messageWithProfile = {
@@ -165,22 +160,10 @@ export function useRoomChat(roomId: string) {
     }
   }, [roomId, fetchMessages])
 
-  // Auto-refresh when NotificationAPI delivers messages (both send and receive)
-  useEffect(() => {
-    if (!roomId) return
-    if (notificationAPI?.messages?.length) {
-      const t = setTimeout(() => {
-        fetchMessages()
-      }, 300)
-      return () => clearTimeout(t)
-    }
-  }, [roomId, notificationAPI?.messages, fetchMessages])
- 
   return {
     messages,
     loading,
     sendMessage,
     refetch: fetchMessages,
-    notificationAPI,
   }
 }
