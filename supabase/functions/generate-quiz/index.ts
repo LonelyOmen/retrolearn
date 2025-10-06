@@ -41,13 +41,12 @@ serve(async (req) => {
   }
 
   try {
-    const githubPat = Deno.env.get('GITHUB_PAT');
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!githubPat && !geminiApiKey) {
-      throw new Error('No AI API keys configured');
+    if (!geminiApiKey) {
+      throw new Error('Gemini API key not configured');
     }
 
     if (!supabaseUrl || !supabaseServiceKey) {
@@ -108,43 +107,9 @@ serve(async (req) => {
 
     let content;
 
-    // Try GitHub Models GPT-5 first
-    if (githubPat) {
-      try {
-        console.log('Trying GitHub Models GPT-5 for quiz generation');
-        const gptResponse = await fetch('https://models.inference.ai.azure.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${githubPat}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-5',
-            messages: [
-              { role: 'system', content: 'You are a quiz generator that creates educational quizzes.' },
-              { role: 'user', content: prompt }
-            ],
-            max_completion_tokens: 4000,
-            response_format: { type: "json_object" }
-          }),
-        });
-
-        if (gptResponse.ok) {
-          const gptData = await gptResponse.json();
-          content = gptData.choices[0].message.content;
-          console.log('GitHub Models GPT-5 quiz generated successfully');
-        } else {
-          const errorText = await gptResponse.text();
-          console.error('GitHub Models GPT-5 API error:', gptResponse.status, errorText);
-          throw new Error(`GitHub Models GPT-5 failed: ${gptResponse.status}`);
-        }
-      } catch (error) {
-        console.error('GitHub Models GPT-5 error, falling back to Gemini:', error);
-      }
-    }
-
-    // Fallback to Gemini if GPT-5 failed or not available
-    if (!content && geminiApiKey) {
+    console.log('Using Gemini 2.5 Flash for quiz generation');
+    
+    // Use Gemini as primary model
       const callGemini = async (apiKey: string, model: string) => {
         const startTime = Date.now();
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
@@ -164,12 +129,12 @@ serve(async (req) => {
         return { res, data, responseTime } as const;
       };
 
-      // Try latest flash model first, then fallbacks and secondary key if quota
-      let { res: aiRes, data: aiData, responseTime } = await callGemini(geminiApiKey, 'gemini-2.5-flash');
-      let usedModel = 'gemini-2.5-flash';
-      
-      if (!aiRes.ok) {
-        await logApiUsage(supabase, user.id, 'generate-quiz', 'gemini', usedModel, true, 'error', aiData?.error?.message || 'Unknown error', responseTime);
+    // Try Gemini 2.5 Flash as primary model
+    let { res: aiRes, data: aiData, responseTime } = await callGemini(geminiApiKey, 'gemini-2.5-flash');
+    let usedModel = 'gemini-2.5-flash';
+    
+    if (!aiRes.ok) {
+      await logApiUsage(supabase, user.id, 'generate-quiz', 'gemini', usedModel, false, 'error', aiData?.error?.message || 'Unknown error', responseTime);
         
         const status = aiRes.status;
         const errMsg: string = aiData?.error?.message || 'Unknown error';
@@ -200,15 +165,14 @@ serve(async (req) => {
           await logApiUsage(supabase, user.id, 'generate-quiz', 'gemini', usedModel, true, 'error', aiData?.error?.message || 'Unknown error', responseTime);
           console.error('Gemini API error for quiz generation:', { status: aiRes.status, body: aiData });
           throw new Error(`Gemini API error: ${aiRes.status}`);
-        } else {
-          await logApiUsage(supabase, user.id, 'generate-quiz', 'gemini', usedModel, true, 'success', null, responseTime);
-        }
-      } else {
-        await logApiUsage(supabase, user.id, 'generate-quiz', 'gemini', usedModel, true, 'success', null, responseTime);
-      }
-
-      content = aiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+    } else {
+      await logApiUsage(supabase, user.id, 'generate-quiz', 'gemini', usedModel, false, 'success', null, responseTime);
     }
+  } else {
+    await logApiUsage(supabase, user.id, 'generate-quiz', 'gemini', usedModel, false, 'success', null, responseTime);
+  }
+
+    content = aiData?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!content) {
       throw new Error('No AI response received from any provider');
