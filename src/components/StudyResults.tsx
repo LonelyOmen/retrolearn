@@ -71,6 +71,23 @@ const mockQA = [
   }
 ];
 
+// Helper function to parse markdown bold syntax (**text**) and render as bold
+const parseMarkdownBold = (text: string) => {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      const boldText = part.slice(2, -2);
+      return (
+        <strong key={index} className="text-primary font-bold">
+          {boldText}
+        </strong>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+};
+
 export const StudyResults = ({ isVisible, onReset, noteData }: StudyResultsProps) => {
   const [currentFlashcard, setCurrentFlashcard] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -193,7 +210,7 @@ export const StudyResults = ({ isVisible, onReset, noteData }: StudyResultsProps
                     {keyPoints.map((point, index) => (
                       <li key={index} className="flex items-start gap-2">
                         <span className="text-accent font-bold">•</span>
-                        <span className="font-retro text-sm">{point}</span>
+                        <span className="font-retro text-sm">{parseMarkdownBold(point)}</span>
                       </li>
                     ))}
                   </ul>
@@ -201,9 +218,9 @@ export const StudyResults = ({ isVisible, onReset, noteData }: StudyResultsProps
                 </div>
               )}
               <ScrollArea className="h-[400px] pr-4">
-                <pre className="font-retro text-sm text-foreground whitespace-pre-wrap">
-                  {summary}
-                </pre>
+                <div className="font-retro text-sm text-foreground whitespace-pre-wrap">
+                  {parseMarkdownBold(summary)}
+                </div>
               </ScrollArea>
             </Card>
           </TabsContent>
@@ -235,8 +252,8 @@ export const StudyResults = ({ isVisible, onReset, noteData }: StudyResultsProps
                       </div>
                       <p className="font-retro text-foreground">
                         {isFlipped 
-                          ? flashcards[currentFlashcard].back
-                          : flashcards[currentFlashcard].front
+                          ? parseMarkdownBold(flashcards[currentFlashcard].back)
+                          : parseMarkdownBold(flashcards[currentFlashcard].front)
                         }
                       </p>
                       <div className="mt-6 text-xs text-muted-foreground font-retro">
@@ -255,10 +272,10 @@ export const StudyResults = ({ isVisible, onReset, noteData }: StudyResultsProps
                   <Card key={index} className="p-4 bg-muted border border-secondary">
                     <div className="space-y-3">
                       <div className="font-retro font-bold text-primary">
-                        Q: {item.question}
+                        Q: {parseMarkdownBold(item.question)}
                       </div>
                       <div className="font-retro text-sm text-foreground pl-4 border-l-2 border-accent">
-                        A: {item.answer}
+                        A: {parseMarkdownBold(item.answer)}
                       </div>
                     </div>
                   </Card>
