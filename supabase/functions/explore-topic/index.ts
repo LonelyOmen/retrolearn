@@ -51,7 +51,7 @@ serve(async (req) => {
     console.log('Exploring topic:', topic);
 
     // Get API keys
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    const githubPat = Deno.env.get('GITHUB_PAT');
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     const geminiApiKeySecondary = Deno.env.get('GEMINI_API_KEY_SECONDARY');
     const youtubeApiKey = Deno.env.get('YOUTUBE_API_KEY');
@@ -60,23 +60,23 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!openaiApiKey && !geminiApiKey && !geminiApiKeySecondary) {
+    if (!githubPat && !geminiApiKey && !geminiApiKeySecondary) {
       throw new Error('No AI API keys configured');
     }
 
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
-    // Helper function to call OpenAI GPT-5 API
-    const callOpenAIAPI = async (prompt: string) => {
+    // Helper function to call GitHub Models GPT-5 API
+    const callGitHubModelsAPI = async (prompt: string) => {
       const startTime = Date.now();
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch('https://models.inference.ai.azure.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openaiApiKey}`,
+          'Authorization': `Bearer ${githubPat}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-5-2025-08-07',
+          model: 'gpt-5',
           messages: [
             { role: 'system', content: 'You are an educational assistant that generates learning content.' },
             { role: 'user', content: prompt }
@@ -89,12 +89,12 @@ serve(async (req) => {
       const responseTime = Date.now() - startTime;
 
       if (!response.ok) {
-        await logApiUsage(supabase, null, 'explore-topic', 'openai', 'gpt-5-2025-08-07', false, 'error', `Status ${response.status}`, responseTime);
-        throw new Error(`OpenAI API error: ${response.status}`);
+        await logApiUsage(supabase, null, 'explore-topic', 'github-models', 'gpt-5', false, 'error', `Status ${response.status}`, responseTime);
+        throw new Error(`GitHub Models API error: ${response.status}`);
       }
 
       const data = await response.json();
-      await logApiUsage(supabase, null, 'explore-topic', 'openai', 'gpt-5-2025-08-07', false, 'success', null, responseTime);
+      await logApiUsage(supabase, null, 'explore-topic', 'github-models', 'gpt-5', false, 'success', null, responseTime);
       return data.choices[0].message.content;
     };
 
@@ -165,14 +165,14 @@ Create 8 progressive learning steps that are specific to ${topic}. Each step sho
     let geminiData;
     let aiContent;
     
-    // Try OpenAI GPT-5 first
-    if (openaiApiKey) {
+    // Try GitHub Models GPT-5 first
+    if (githubPat) {
       try {
-        console.log('Trying GPT-5 for topic exploration');
-        aiContent = await callOpenAIAPI(geminiPrompt);
-        console.log('GPT-5 response received');
+        console.log('Trying GitHub Models GPT-5 for topic exploration');
+        aiContent = await callGitHubModelsAPI(geminiPrompt);
+        console.log('GitHub Models GPT-5 response received');
       } catch (error) {
-        console.error('GPT-5 error, falling back to Gemini:', error);
+        console.error('GitHub Models GPT-5 error, falling back to Gemini:', error);
       }
     }
 

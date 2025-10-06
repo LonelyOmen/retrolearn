@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+const githubPat = Deno.env.get('GITHUB_PAT');
 const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 const geminiApiKeySecondary = Deno.env.get('GEMINI_API_KEY_SECONDARY');
 const tavilyApiKey = Deno.env.get('TAVILY_API_KEY');
@@ -64,7 +64,7 @@ serve(async (req) => {
       throw new Error('Note ID and either content or images are required');
     }
 
-    if (!openaiApiKey && !geminiApiKey) {
+    if (!githubPat && !geminiApiKey) {
       throw new Error('No AI API keys configured');
     }
 
@@ -92,20 +92,20 @@ serve(async (req) => {
       console.log('Enhancing with internet research...');
       
       try {
-        // Extract key topics - try GPT-5 first
+        // Extract key topics - try GitHub Models GPT-5 first
         let topics: string[] = [];
         
-        if (openaiApiKey) {
+        if (githubPat) {
           try {
             const topicsPrompt = `Extract 2-3 key research topics from the provided notes. Return them as a JSON array of strings.\n\nNotes: ${content}`;
-            const topicsResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            const topicsResponse = await fetch('https://models.inference.ai.azure.com/v1/chat/completions', {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${openaiApiKey}`,
+                'Authorization': `Bearer ${githubPat}`,
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                model: 'gpt-5-2025-08-07',
+                model: 'gpt-5',
                 messages: [
                   { role: 'system', content: 'You are a research assistant.' },
                   { role: 'user', content: topicsPrompt }
@@ -121,7 +121,7 @@ serve(async (req) => {
               topics = parsed.topics || Object.values(parsed)[0] || [];
             }
           } catch (error) {
-            console.log('GPT-5 topic extraction failed:', error);
+            console.log('GitHub Models GPT-5 topic extraction failed:', error);
           }
         }
 
@@ -212,11 +212,11 @@ ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze th
     let studyData;
     let rawResponseText;
 
-    // Try OpenAI GPT-5 first
-    if (openaiApiKey) {
+    // Try GitHub Models GPT-5 first
+    if (githubPat) {
       const startTime = Date.now();
       try {
-        console.log('Trying GPT-5 for study materials');
+        console.log('Trying GitHub Models GPT-5 for study materials');
         const messages: any[] = [
           { role: 'system', content: 'You are an expert educational assistant.' }
         ];
@@ -239,14 +239,14 @@ ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze th
           messages.push({ role: 'user', content: prompt });
         }
 
-        const gptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        const gptResponse = await fetch('https://models.inference.ai.azure.com/v1/chat/completions', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${openaiApiKey}`,
+            'Authorization': `Bearer ${githubPat}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'gpt-5-2025-08-07',
+            model: 'gpt-5',
             messages,
             max_completion_tokens: 4000,
             response_format: { type: "json_object" }
@@ -259,17 +259,17 @@ ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze th
           const gptData = await gptResponse.json();
           rawResponseText = gptData.choices[0].message.content;
           studyData = JSON.parse(rawResponseText);
-          console.log('GPT-5 study materials generated successfully');
-          await logApiUsage(supabase, userId, 'process-notes', 'openai', 'gpt-5-2025-08-07', false, 'success', null, responseTime);
+          console.log('GitHub Models GPT-5 study materials generated successfully');
+          await logApiUsage(supabase, userId, 'process-notes', 'github-models', 'gpt-5', false, 'success', null, responseTime);
         } else {
           const errorText = await gptResponse.text();
-          console.error('GPT-5 API error:', gptResponse.status, errorText);
-          await logApiUsage(supabase, userId, 'process-notes', 'openai', 'gpt-5-2025-08-07', false, 'error', `Status ${gptResponse.status}: ${errorText}`, responseTime);
+          console.error('GitHub Models GPT-5 API error:', gptResponse.status, errorText);
+          await logApiUsage(supabase, userId, 'process-notes', 'github-models', 'gpt-5', false, 'error', `Status ${gptResponse.status}: ${errorText}`, responseTime);
         }
       } catch (error) {
         const responseTime = Date.now() - startTime;
-        console.error('GPT-5 error, falling back to Gemini:', error);
-        await logApiUsage(supabase, userId, 'process-notes', 'openai', 'gpt-5-2025-08-07', false, 'error', error instanceof Error ? error.message : 'Unknown error', responseTime);
+        console.error('GitHub Models GPT-5 error, falling back to Gemini:', error);
+        await logApiUsage(supabase, userId, 'process-notes', 'github-models', 'gpt-5', false, 'error', error instanceof Error ? error.message : 'Unknown error', responseTime);
       }
     }
 

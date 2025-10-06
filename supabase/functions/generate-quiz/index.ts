@@ -41,12 +41,12 @@ serve(async (req) => {
   }
 
   try {
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    const githubPat = Deno.env.get('GITHUB_PAT');
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!openaiApiKey && !geminiApiKey) {
+    if (!githubPat && !geminiApiKey) {
       throw new Error('No AI API keys configured');
     }
 
@@ -108,18 +108,18 @@ serve(async (req) => {
 
     let content;
 
-    // Try OpenAI GPT-5 first
-    if (openaiApiKey) {
+    // Try GitHub Models GPT-5 first
+    if (githubPat) {
       try {
-        console.log('Trying GPT-5 for quiz generation');
-        const gptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        console.log('Trying GitHub Models GPT-5 for quiz generation');
+        const gptResponse = await fetch('https://models.inference.ai.azure.com/v1/chat/completions', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${openaiApiKey}`,
+            'Authorization': `Bearer ${githubPat}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'gpt-5-2025-08-07',
+            model: 'gpt-5',
             messages: [
               { role: 'system', content: 'You are a quiz generator that creates educational quizzes.' },
               { role: 'user', content: prompt }
@@ -132,14 +132,14 @@ serve(async (req) => {
         if (gptResponse.ok) {
           const gptData = await gptResponse.json();
           content = gptData.choices[0].message.content;
-          console.log('GPT-5 quiz generated successfully');
+          console.log('GitHub Models GPT-5 quiz generated successfully');
         } else {
           const errorText = await gptResponse.text();
-          console.error('GPT-5 API error:', gptResponse.status, errorText);
-          throw new Error(`GPT-5 failed: ${gptResponse.status}`);
+          console.error('GitHub Models GPT-5 API error:', gptResponse.status, errorText);
+          throw new Error(`GitHub Models GPT-5 failed: ${gptResponse.status}`);
         }
       } catch (error) {
-        console.error('GPT-5 error, falling back to Gemini:', error);
+        console.error('GitHub Models GPT-5 error, falling back to Gemini:', error);
       }
     }
 
