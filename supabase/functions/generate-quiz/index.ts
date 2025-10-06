@@ -75,8 +75,20 @@ serve(async (req) => {
 
     if (authError || !user) {
       console.error('Auth error:', authError?.message || 'User not found');
-      console.error('Token preview:', token.substring(0, 20) + '...');
-      throw new Error(`Invalid authentication: ${authError?.message || 'User not found'}`);
+      console.error('Auth error details:', JSON.stringify(authError));
+      
+      // Return a more specific error message
+      const errorMsg = authError?.message?.includes('expired') || authError?.message?.includes('invalid')
+        ? 'Your session has expired. Please sign in again.'
+        : 'Authentication failed. Please sign in again.';
+      
+      return new Response(JSON.stringify({ 
+        error: errorMsg,
+        auth_error: authError?.message 
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     console.log('User authenticated:', user.id);

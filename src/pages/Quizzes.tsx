@@ -149,8 +149,19 @@ export default function Quizzes() {
     setCreating(true);
     try {
       // Ensure user is signed in and pass JWT to edge function
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !sessionData.session) {
+        toast({
+          title: "Session expired",
+          description: "Please sign in again to continue",
+          variant: "destructive"
+        });
+        await supabase.auth.signOut();
+        return;
+      }
+
+      const accessToken = sessionData.session.access_token;
 
       if (!user || !accessToken) {
         throw new Error("You must be signed in to create a quiz.");
@@ -170,6 +181,16 @@ export default function Quizzes() {
         }
       });
       if (fnError) {
+        // Check if it's an auth error
+        if (fnError.message?.includes('session') || fnError.message?.includes('Authentication') || fnError.message?.includes('sign in')) {
+          toast({
+            title: "Session expired",
+            description: "Please sign in again to continue",
+            variant: "destructive"
+          });
+          await supabase.auth.signOut();
+          return;
+        }
         throw fnError;
       }
       const {
