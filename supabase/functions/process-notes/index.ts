@@ -129,7 +129,7 @@ serve(async (req) => {
         if (topics.length === 0 && geminiApiKey) {
           const startTime = Date.now();
           try {
-            const topicsResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key=${geminiApiKey}`, {
+            const topicsResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -150,12 +150,12 @@ serve(async (req) => {
             
             if (topicsResponse.ok && topicsData.candidates?.[0]?.content?.parts?.[0]?.text) {
               topics = topicsData.candidates[0].content.parts[0].text.split('\n').filter((t: string) => t.trim());
-              await logApiUsage(supabase, userId, 'process-notes-topics', 'gemini', 'gemini-1.5-flash-002', true, 'success', null, responseTime);
+              await logApiUsage(supabase, userId, 'process-notes-topics', 'gemini', 'gemini-2.5-flash', true, 'success', null, responseTime);
             } else {
-              await logApiUsage(supabase, userId, 'process-notes-topics', 'gemini', 'gemini-1.5-flash-002', true, 'error', topicsData.error?.message || 'Unknown error', responseTime);
+              await logApiUsage(supabase, userId, 'process-notes-topics', 'gemini', 'gemini-2.5-flash', true, 'error', topicsData.error?.message || 'Unknown error', responseTime);
             }
           } catch (error) {
-            await logApiUsage(supabase, userId, 'process-notes-topics', 'gemini', 'gemini-1.5-flash-002', true, 'error', error instanceof Error ? error.message : 'Unknown error', Date.now() - startTime);
+            await logApiUsage(supabase, userId, 'process-notes-topics', 'gemini', 'gemini-2.5-flash', true, 'error', error instanceof Error ? error.message : 'Unknown error', Date.now() - startTime);
           }
         }
 
@@ -305,9 +305,9 @@ ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze th
       };
 
       const startTime = Date.now();
-      let { res: studyResponse, data: geminiData } = await callGemini(geminiApiKey, 'gemini-1.5-pro-002');
+      let { res: studyResponse, data: geminiData } = await callGemini(geminiApiKey, 'gemini-2.5-flash');
       let responseTime = Date.now() - startTime;
-      let usedModel = 'gemini-1.5-pro-002';
+      let usedModel = 'gemini-2.5-flash';
       let isFallback = true;
 
       if (!studyResponse.ok) {
@@ -318,15 +318,15 @@ ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze th
         if (quotaLike && geminiApiKeySecondary) {
           console.log('Trying secondary Gemini key');
           const retryStart = Date.now();
-          const retry = await callGemini(geminiApiKeySecondary, 'gemini-1.5-pro-002');
+          const retry = await callGemini(geminiApiKeySecondary, 'gemini-2.5-flash');
           responseTime = Date.now() - retryStart;
           studyResponse = retry.res; geminiData = retry.data;
         }
 
         if (!studyResponse.ok) {
           const keyForFlash = quotaLike && geminiApiKeySecondary ? geminiApiKeySecondary : geminiApiKey;
-          console.log('Falling back to Flash model');
-          usedModel = 'gemini-1.5-flash-002';
+          console.log('Falling back to Flash Lite model');
+          usedModel = 'gemini-2.5-flash-lite';
           const fbStart = Date.now();
           const fb = await callGemini(keyForFlash, usedModel);
           responseTime = Date.now() - fbStart;

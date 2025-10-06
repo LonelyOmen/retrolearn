@@ -164,7 +164,7 @@ serve(async (req) => {
         return { res, data, responseTime } as const;
       };
 
-      // Try latest fast model first, then fallbacks and secondary key if quota
+      // Try latest flash model first, then fallbacks and secondary key if quota
       let { res: aiRes, data: aiData, responseTime } = await callGemini(geminiApiKey, 'gemini-2.5-flash');
       let usedModel = 'gemini-2.5-flash';
       
@@ -182,20 +182,16 @@ serve(async (req) => {
           aiRes = retry.res; aiData = retry.data; responseTime = retry.responseTime;
         }
 
-        // If still not OK, try 1.5-flash then 1.5-flash-8b with whichever key available
+        // If still not OK, try flash-lite as final fallback
         if (!aiRes.ok) {
           const keyForFlash = geminiApiKeySecondary ?? geminiApiKey;
-          console.log('Falling back to gemini-1.5-flash');
-          usedModel = 'gemini-1.5-flash';
+          console.log('Falling back to gemini-2.5-flash-lite');
+          usedModel = 'gemini-2.5-flash-lite';
           let fb = await callGemini(keyForFlash, usedModel);
           responseTime = fb.responseTime;
           
           if (!(fb.res.ok && fb.data?.candidates?.[0]?.content?.parts?.[0]?.text)) {
             await logApiUsage(supabase, user.id, 'generate-quiz', 'gemini', usedModel, true, 'error', fb.data?.error?.message || 'Unknown error', responseTime);
-            console.log('1.5-flash failed, trying gemini-1.5-flash-8b');
-            usedModel = 'gemini-1.5-flash-8b';
-            fb = await callGemini(keyForFlash, usedModel);
-            responseTime = fb.responseTime;
           }
           aiRes = fb.res; aiData = fb.data;
         }
