@@ -53,21 +53,31 @@ serve(async (req) => {
       throw new Error('Supabase configuration missing');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get user from auth header
+    // Get auth header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('No authorization header');
     }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Create client with user's token to verify auth and get user
+    const supabaseAuth = createClient(supabaseUrl, Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || '', {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
 
     if (authError || !user) {
-      throw new Error('Invalid authentication');
+      console.error('Auth error:', authError?.message || 'User not found');
+      console.error('Token preview:', token.substring(0, 20) + '...');
+      throw new Error(`Invalid authentication: ${authError?.message || 'User not found'}`);
     }
+
+    console.log('User authenticated:', user.id);
+
+    // Create service role client for database operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { title, description, topic } = await req.json();
 
