@@ -61,8 +61,13 @@ serve(async (req) => {
 
     const token = authHeader.replace('Bearer ', '');
     
-    // Create client with user's token to verify auth and get user
-    const supabaseAuth = createClient(supabaseUrl, Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || '', {
+    // Create client with anon key to verify auth and get user
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    if (!supabaseAnonKey) {
+      throw new Error('Supabase anon key not configured');
+    }
+
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
