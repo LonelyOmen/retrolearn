@@ -99,7 +99,7 @@ serve(async (req) => {
     };
 
     // Helper function to call Gemini API with fallback
-    const callGeminiAPI = async (prompt: string, apiKey: string, model: string = 'gemini-2.5-flash') => {
+    const callGeminiAPI = async (prompt: string, apiKey: string, model: string = 'gemini-2.0-flash-exp') => {
       const startTime = Date.now();
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -115,10 +115,10 @@ serve(async (req) => {
               }]
             }],
             generationConfig: {
-              temperature: 0.3,
-              topK: 20,
-              topP: 0.8,
-              maxOutputTokens: 800,
+              temperature: 0.4,
+              topK: 40,
+              topP: 0.95,
+              maxOutputTokens: 2048,
               responseMimeType: "application/json"
             }
           })
@@ -128,38 +128,49 @@ serve(async (req) => {
       const responseTime = Date.now() - startTime;
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Gemini API error ${response.status}:`, errorText);
         await logApiUsage(supabase, null, 'explore-topic', 'gemini', model, true, 'error', `Status ${response.status}`, responseTime);
         throw new Error(`Gemini API error: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('Gemini API response received successfully');
       await logApiUsage(supabase, null, 'explore-topic', 'gemini', model, true, 'success', null, responseTime);
       return data;
     };
 
     // Topic-specific prompt for generating relevant learning tasks
-    const geminiPrompt = `Generate learning content for "${topic}". Create specific, actionable tasks related to ${topic}.
+    const geminiPrompt = `You are an expert educator creating personalized learning content. Generate comprehensive learning materials for the topic: "${topic}"
+
+CRITICAL: You MUST respond with ONLY valid JSON in exactly this format, no additional text or markdown:
 
 {
-  "overview": "Brief overview of ${topic} (max 150 words)",
+  "overview": "A detailed, engaging 2-3 sentence overview explaining what ${topic} is, why it matters, and what learners will gain. Make it specific to ${topic}, not generic.",
   "tips": [
-    "Tip 1 specific to ${topic}",
-    "Tip 2 specific to ${topic}",
-    "Tip 3 specific to ${topic}",
-    "Tip 4 specific to ${topic}",
-    "Tip 5 specific to ${topic}"
+    "Practical, actionable tip specifically about ${topic}",
+    "Another specific tip for mastering ${topic}",
+    "A third unique insight about ${topic}",
+    "A fourth helpful tip for ${topic} learners",
+    "A fifth expert recommendation for ${topic}"
   ],
   "learningSteps": [
     {
       "id": "step-1",
-      "title": "Task title specific to ${topic}",
-      "description": "Specific action for ${topic}",
+      "title": "Specific milestone title for ${topic}",
+      "description": "Detailed actionable task description for ${topic}",
       "completed": false
     }
   ]
 }
 
-Create 8 progressive learning steps that are specific to ${topic}. Each step should be a concrete task someone can do to learn ${topic}. Return only valid JSON.`;
+Requirements:
+- Create exactly 8 progressive learning steps from beginner to advanced
+- Each step must be specific to ${topic} - no generic content
+- Overview must be 2-3 sentences explaining ${topic} specifically
+- Tips must be actionable and unique to ${topic}
+- Return ONLY the JSON object, no markdown formatting, no explanations
+- Ensure all JSON is properly formatted with correct quotes and commas`;
 
     console.log('Calling AI API...');
     let geminiData;
@@ -284,27 +295,52 @@ Create 8 progressive learning steps that are specific to ${topic}. Each step sho
       throw new Error('Failed to generate content - all AI providers returned empty responses');
     }
 
-    console.log('Raw AI response:', aiContent);
+    console.log('Raw AI response (first 500 chars):', aiContent.substring(0, 500));
 
-    // Parse AI response with better error handling
+    // Parse AI response with comprehensive error handling
     let aiJsonStr = aiContent?.trim() || '';
-    if (aiJsonStr.startsWith('```json')) {
-      aiJsonStr = aiJsonStr.slice(7);
+    
+    // Remove markdown code blocks if present
+    if (aiJsonStr.includes('```')) {
+      // Extract content between code blocks
+      const codeBlockMatch = aiJsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (codeBlockMatch) {
+        aiJsonStr = codeBlockMatch[1];
+      } else {
+        // Remove all code block markers
+        aiJsonStr = aiJsonStr.replace(/```json/g, '').replace(/```/g, '');
+      }
     }
-    if (aiJsonStr.startsWith('```')) {
-      aiJsonStr = aiJsonStr.slice(3);
-    }
-    if (aiJsonStr.endsWith('```')) {
-      aiJsonStr = aiJsonStr.slice(0, -3);
-    }
+    
     aiJsonStr = aiJsonStr.trim();
+
+    // Try to find JSON object in the response if not at the start
+    if (!aiJsonStr.startsWith('{')) {
+      const jsonMatch = aiJsonStr.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        aiJsonStr = jsonMatch[0];
+      }
+    }
 
     let learningContent;
     try {
       learningContent = JSON.parse(aiJsonStr);
+      console.log('Successfully parsed AI JSON response');
+      
+      // Validate the parsed content has required fields
+      if (!learningContent.overview || !learningContent.tips || !learningContent.learningSteps) {
+        console.error('Parsed JSON missing required fields');
+        throw new Error('Invalid JSON structure - missing required fields');
+      }
+      
+      console.log('AI generated overview length:', learningContent.overview.length);
+      console.log('AI generated tips count:', learningContent.tips?.length);
+      console.log('AI generated steps count:', learningContent.learningSteps?.length);
+      
     } catch (parseError) {
       console.error('AI JSON parse error:', parseError);
-      console.error('Content to parse:', aiJsonStr);
+      console.error('Failed to parse content (first 1000 chars):', aiJsonStr.substring(0, 1000));
+      console.error('Will use fallback content generation');
       
       // Enhanced fallback content with topic-specific tasks
       const topicLower = topic.toLowerCase();
