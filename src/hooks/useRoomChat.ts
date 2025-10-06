@@ -130,7 +130,7 @@ export function useRoomChat(roomId: string) {
     fetchMessages()
 
     const channel = supabase
-      .channel(`messages:${roomId}`)
+      .channel('schema-db-changes')
       .on(
         'postgres_changes',
         {
