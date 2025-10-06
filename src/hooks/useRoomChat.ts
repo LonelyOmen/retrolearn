@@ -83,8 +83,8 @@ export function useRoomChat(roomId: string) {
     const trimmed = message.trim()
 
     try {
-      // Insert directly into Supabase - realtime will handle instant delivery
-      const { error } = await supabase
+      // Insert and optimistically update UI (Realtime will also deliver)
+      const { data: inserted, error } = await supabase
         .from('room_messages')
         .insert({
           room_id: roomId,
@@ -92,8 +92,25 @@ export function useRoomChat(roomId: string) {
           message: trimmed,
           message_type: 'text',
         })
+        .select('*')
+        .maybeSingle()
 
       if (error) throw error
+
+      // Attach profile for immediate render
+      let profile: RoomMessage['profiles'] | undefined = undefined
+      const { data: p } = await supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .maybeSingle()
+      profile = p || undefined
+
+      if (inserted) {
+        const optimistic = { ...inserted, profiles: profile } as RoomMessage
+        setMessages(prev => [...prev, optimistic])
+      }
+
       return true
     } catch (error) {
       console.error('Error sending message:', error)
