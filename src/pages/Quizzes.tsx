@@ -148,7 +148,14 @@ export default function Quizzes() {
     }
     setCreating(true);
     try {
-      // Call AI generation edge function via Supabase client
+      // Ensure user is signed in and pass JWT to edge function
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (!user || !accessToken) {
+        throw new Error("You must be signed in to create a quiz.");
+      }
+
       const {
         data: result,
         error: fnError
@@ -157,6 +164,9 @@ export default function Quizzes() {
           title: createTitle,
           description: createDescription,
           topic: createTopic
+        },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
         }
       });
       if (fnError) {
