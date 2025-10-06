@@ -1,10 +1,39 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Helper to log API usage
+async function logApiUsage(
+  supabase: any,
+  userId: string | null,
+  functionName: string,
+  apiProvider: string,
+  apiModel: string,
+  isFallback: boolean,
+  status: string,
+  errorMessage: string | null,
+  responseTimeMs: number | null
+) {
+  try {
+    await supabase.from('ai_api_usage').insert({
+      user_id: userId,
+      function_name: functionName,
+      api_provider: apiProvider,
+      api_model: apiModel,
+      is_fallback: isFallback,
+      status,
+      error_message: errorMessage,
+      response_time_ms: responseTimeMs
+    });
+  } catch (error) {
+    console.error('Failed to log API usage:', error);
+  }
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -28,13 +57,18 @@ serve(async (req) => {
     const youtubeApiKey = Deno.env.get('YOUTUBE_API_KEY');
     const redditApiKey = Deno.env.get('REDDIT_API_KEY');
     const tavilyApiKey = Deno.env.get('TAVILY_API_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!openaiApiKey && !geminiApiKey && !geminiApiKeySecondary) {
       throw new Error('No AI API keys configured');
     }
 
+    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+
     // Helper function to call OpenAI GPT-5 API
     const callOpenAIAPI = async (prompt: string) => {
+      const startTime = Date.now();
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -52,18 +86,23 @@ serve(async (req) => {
         }),
       });
 
+      const responseTime = Date.now() - startTime;
+
       if (!response.ok) {
+        await logApiUsage(supabase, null, 'explore-topic', 'openai', 'gpt-5-2025-08-07', false, 'error', `Status ${response.status}`, responseTime);
         throw new Error(`OpenAI API error: ${response.status}`);
       }
 
       const data = await response.json();
+      await logApiUsage(supabase, null, 'explore-topic', 'openai', 'gpt-5-2025-08-07', false, 'success', null, responseTime);
       return data.choices[0].message.content;
     };
 
     // Helper function to call Gemini API with fallback
-    const callGeminiAPI = async (prompt: string, apiKey: string) => {
+    const callGeminiAPI = async (prompt: string, apiKey: string, model: string = 'gemini-2.5-flash') => {
+      const startTime = Date.now();
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: {
@@ -86,11 +125,16 @@ serve(async (req) => {
         }
       );
 
+      const responseTime = Date.now() - startTime;
+
       if (!response.ok) {
+        await logApiUsage(supabase, null, 'explore-topic', 'gemini', model, true, 'error', `Status ${response.status}`, responseTime);
         throw new Error(`Gemini API error: ${response.status}`);
       }
 
-      return response.json();
+      const data = await response.json();
+      await logApiUsage(supabase, null, 'explore-topic', 'gemini', model, true, 'success', null, responseTime);
+      return data;
     };
 
     // Topic-specific prompt for generating relevant learning tasks
@@ -142,7 +186,7 @@ Create 8 progressive learning steps that are specific to ${topic}. Each step sho
       
       try {
         console.log('Using Gemini for topic exploration');
-        geminiData = await callGeminiAPI(geminiPrompt, currentApiKey);
+        geminiData = await callGeminiAPI(geminiPrompt, currentApiKey, 'gemini-2.5-flash');
         aiContent = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
       } catch (error) {
         console.error('Primary Gemini API error:', error);
@@ -150,7 +194,7 @@ Create 8 progressive learning steps that are specific to ${topic}. Each step sho
         if (geminiApiKeySecondary && currentApiKey === geminiApiKey) {
           console.log('Trying secondary Gemini API key...');
           try {
-            geminiData = await callGeminiAPI(geminiPrompt, geminiApiKeySecondary);
+            geminiData = await callGeminiAPI(geminiPrompt, geminiApiKeySecondary, 'gemini-2.5-flash');
             aiContent = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
           } catch (secondaryError) {
             console.error('Secondary Gemini API error:', secondaryError);

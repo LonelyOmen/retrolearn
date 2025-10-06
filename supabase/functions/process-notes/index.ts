@@ -20,6 +20,34 @@ interface ProcessingStep {
   result?: any;
 }
 
+// Helper to log API usage
+async function logApiUsage(
+  supabase: any,
+  userId: string | null,
+  functionName: string,
+  apiProvider: string,
+  apiModel: string,
+  isFallback: boolean,
+  status: string,
+  errorMessage: string | null,
+  responseTimeMs: number | null
+) {
+  try {
+    await supabase.from('ai_api_usage').insert({
+      user_id: userId,
+      function_name: functionName,
+      api_provider: apiProvider,
+      api_model: apiModel,
+      is_fallback: isFallback,
+      status,
+      error_message: errorMessage,
+      response_time_ms: responseTimeMs
+    });
+  } catch (error) {
+    console.error('Failed to log API usage:', error);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -41,6 +69,15 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+
+    // Get user_id from the note for logging
+    const { data: noteData } = await supabase
+      .from('notes')
+      .select('user_id')
+      .eq('id', noteId)
+      .single();
+    
+    const userId = noteData?.user_id || null;
 
     await supabase
       .from('notes')
@@ -90,25 +127,35 @@ serve(async (req) => {
 
         // Fallback to Gemini
         if (topics.length === 0 && geminiApiKey) {
-          const topicsResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key=${geminiApiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{
-                parts: [{
-                  text: `Extract 2-3 key research topics from the provided notes. Return only the topics, one per line.\n\nNotes: ${content}`
-                }]
-              }],
-              generationConfig: {
-                temperature: 0.3,
-                maxOutputTokens: 150,
-              }
-            }),
-          });
+          const startTime = Date.now();
+          try {
+            const topicsResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key=${geminiApiKey}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{
+                    text: `Extract 2-3 key research topics from the provided notes. Return only the topics, one per line.\n\nNotes: ${content}`
+                  }]
+                }],
+                generationConfig: {
+                  temperature: 0.3,
+                  maxOutputTokens: 150,
+                }
+              }),
+            });
 
-          const topicsData = await topicsResponse.json();
-          if (topicsData.candidates?.[0]?.content?.parts?.[0]?.text) {
-            topics = topicsData.candidates[0].content.parts[0].text.split('\n').filter((t: string) => t.trim());
+            const responseTime = Date.now() - startTime;
+            const topicsData = await topicsResponse.json();
+            
+            if (topicsResponse.ok && topicsData.candidates?.[0]?.content?.parts?.[0]?.text) {
+              topics = topicsData.candidates[0].content.parts[0].text.split('\n').filter((t: string) => t.trim());
+              await logApiUsage(supabase, userId, 'process-notes-topics', 'gemini', 'gemini-1.5-flash-002', true, 'success', null, responseTime);
+            } else {
+              await logApiUsage(supabase, userId, 'process-notes-topics', 'gemini', 'gemini-1.5-flash-002', true, 'error', topicsData.error?.message || 'Unknown error', responseTime);
+            }
+          } catch (error) {
+            await logApiUsage(supabase, userId, 'process-notes-topics', 'gemini', 'gemini-1.5-flash-002', true, 'error', error instanceof Error ? error.message : 'Unknown error', Date.now() - startTime);
           }
         }
 
@@ -167,6 +214,7 @@ ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze th
 
     // Try OpenAI GPT-5 first
     if (openaiApiKey) {
+      const startTime = Date.now();
       try {
         console.log('Trying GPT-5 for study materials');
         const messages: any[] = [
@@ -205,17 +253,23 @@ ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze th
           }),
         });
 
+        const responseTime = Date.now() - startTime;
+
         if (gptResponse.ok) {
           const gptData = await gptResponse.json();
           rawResponseText = gptData.choices[0].message.content;
           studyData = JSON.parse(rawResponseText);
           console.log('GPT-5 study materials generated successfully');
+          await logApiUsage(supabase, userId, 'process-notes', 'openai', 'gpt-5-2025-08-07', false, 'success', null, responseTime);
         } else {
           const errorText = await gptResponse.text();
           console.error('GPT-5 API error:', gptResponse.status, errorText);
+          await logApiUsage(supabase, userId, 'process-notes', 'openai', 'gpt-5-2025-08-07', false, 'error', `Status ${gptResponse.status}: ${errorText}`, responseTime);
         }
       } catch (error) {
+        const responseTime = Date.now() - startTime;
         console.error('GPT-5 error, falling back to Gemini:', error);
+        await logApiUsage(supabase, userId, 'process-notes', 'openai', 'gpt-5-2025-08-07', false, 'error', error instanceof Error ? error.message : 'Unknown error', responseTime);
       }
     }
 
@@ -250,31 +304,50 @@ ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze th
         return { res, data } as const;
       };
 
+      const startTime = Date.now();
       let { res: studyResponse, data: geminiData } = await callGemini(geminiApiKey, 'gemini-1.5-pro-002');
+      let responseTime = Date.now() - startTime;
+      let usedModel = 'gemini-1.5-pro-002';
+      let isFallback = true;
 
       if (!studyResponse.ok) {
+        await logApiUsage(supabase, userId, 'process-notes', 'gemini', usedModel, isFallback, 'error', geminiData.error?.message || 'Unknown error', responseTime);
+        
         const quotaLike = studyResponse.status === 429 || /quota|insufficient|exceed|rate/i.test(geminiData.error?.message || '');
 
         if (quotaLike && geminiApiKeySecondary) {
           console.log('Trying secondary Gemini key');
+          const retryStart = Date.now();
           const retry = await callGemini(geminiApiKeySecondary, 'gemini-1.5-pro-002');
+          responseTime = Date.now() - retryStart;
           studyResponse = retry.res; geminiData = retry.data;
         }
 
         if (!studyResponse.ok) {
           const keyForFlash = quotaLike && geminiApiKeySecondary ? geminiApiKeySecondary : geminiApiKey;
           console.log('Falling back to Flash model');
-          const fb = await callGemini(keyForFlash, 'gemini-1.5-flash-002');
+          usedModel = 'gemini-1.5-flash-002';
+          const fbStart = Date.now();
+          const fb = await callGemini(keyForFlash, usedModel);
+          responseTime = Date.now() - fbStart;
+          
           if (fb.res.ok && fb.data.candidates?.[0]?.content?.parts?.[0]?.text) {
             geminiData = fb.data;
+            studyResponse = fb.res;
+            await logApiUsage(supabase, userId, 'process-notes', 'gemini', usedModel, isFallback, 'success', null, responseTime);
           } else {
+            await logApiUsage(supabase, userId, 'process-notes', 'gemini', usedModel, isFallback, 'error', fb.data.error?.message || 'Unknown error', responseTime);
             await supabase.from('notes').update({ processing_status: 'error' }).eq('id', noteId);
             return new Response(
               JSON.stringify({ success: false, error: 'All AI providers failed' }),
               { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
           }
+        } else {
+          await logApiUsage(supabase, userId, 'process-notes', 'gemini', usedModel, isFallback, 'success', null, responseTime);
         }
+      } else {
+        await logApiUsage(supabase, userId, 'process-notes', 'gemini', usedModel, isFallback, 'success', null, responseTime);
       }
       
       if (geminiData.candidates?.[0]?.content?.parts?.[0]?.text) {

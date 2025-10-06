@@ -7,6 +7,34 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper to log API usage
+async function logApiUsage(
+  supabase: any,
+  userId: string | null,
+  functionName: string,
+  apiProvider: string,
+  apiModel: string,
+  isFallback: boolean,
+  status: string,
+  errorMessage: string | null,
+  responseTimeMs: number | null
+) {
+  try {
+    await supabase.from('ai_api_usage').insert({
+      user_id: userId,
+      function_name: functionName,
+      api_provider: apiProvider,
+      api_model: apiModel,
+      is_fallback: isFallback,
+      status,
+      error_message: errorMessage,
+      response_time_ms: responseTimeMs
+    });
+  } catch (error) {
+    console.error('Failed to log API usage:', error);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -118,6 +146,7 @@ serve(async (req) => {
     // Fallback to Gemini if GPT-5 failed or not available
     if (!content && geminiApiKey) {
       const callGemini = async (apiKey: string, model: string) => {
+        const startTime = Date.now();
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -131,12 +160,17 @@ serve(async (req) => {
           })
         });
         const data = await res.json();
-        return { res, data } as const;
+        const responseTime = Date.now() - startTime;
+        return { res, data, responseTime } as const;
       };
 
       // Try latest fast model first, then fallbacks and secondary key if quota
-      let { res: aiRes, data: aiData } = await callGemini(geminiApiKey, 'gemini-2.5-flash');
+      let { res: aiRes, data: aiData, responseTime } = await callGemini(geminiApiKey, 'gemini-2.5-flash');
+      let usedModel = 'gemini-2.5-flash';
+      
       if (!aiRes.ok) {
+        await logApiUsage(supabase, user.id, 'generate-quiz', 'gemini', usedModel, true, 'error', aiData?.error?.message || 'Unknown error', responseTime);
+        
         const status = aiRes.status;
         const errMsg: string = aiData?.error?.message || 'Unknown error';
         const quotaLike = status === 429 || /quota|exceed|rate|insufficient/i.test(errMsg);
@@ -145,25 +179,36 @@ serve(async (req) => {
         if ((quotaLike || status >= 500) && geminiApiKeySecondary) {
           console.log('Trying secondary key on gemini-2.5-flash');
           const retry = await callGemini(geminiApiKeySecondary, 'gemini-2.5-flash');
-          aiRes = retry.res; aiData = retry.data;
+          aiRes = retry.res; aiData = retry.data; responseTime = retry.responseTime;
         }
 
         // If still not OK, try 1.5-flash then 1.5-flash-8b with whichever key available
         if (!aiRes.ok) {
           const keyForFlash = geminiApiKeySecondary ?? geminiApiKey;
           console.log('Falling back to gemini-1.5-flash');
-          let fb = await callGemini(keyForFlash, 'gemini-1.5-flash');
+          usedModel = 'gemini-1.5-flash';
+          let fb = await callGemini(keyForFlash, usedModel);
+          responseTime = fb.responseTime;
+          
           if (!(fb.res.ok && fb.data?.candidates?.[0]?.content?.parts?.[0]?.text)) {
+            await logApiUsage(supabase, user.id, 'generate-quiz', 'gemini', usedModel, true, 'error', fb.data?.error?.message || 'Unknown error', responseTime);
             console.log('1.5-flash failed, trying gemini-1.5-flash-8b');
-            fb = await callGemini(keyForFlash, 'gemini-1.5-flash-8b');
+            usedModel = 'gemini-1.5-flash-8b';
+            fb = await callGemini(keyForFlash, usedModel);
+            responseTime = fb.responseTime;
           }
           aiRes = fb.res; aiData = fb.data;
         }
 
         if (!aiRes.ok) {
+          await logApiUsage(supabase, user.id, 'generate-quiz', 'gemini', usedModel, true, 'error', aiData?.error?.message || 'Unknown error', responseTime);
           console.error('Gemini API error for quiz generation:', { status: aiRes.status, body: aiData });
           throw new Error(`Gemini API error: ${aiRes.status}`);
+        } else {
+          await logApiUsage(supabase, user.id, 'generate-quiz', 'gemini', usedModel, true, 'success', null, responseTime);
         }
+      } else {
+        await logApiUsage(supabase, user.id, 'generate-quiz', 'gemini', usedModel, true, 'success', null, responseTime);
       }
 
       content = aiData?.candidates?.[0]?.content?.parts?.[0]?.text;

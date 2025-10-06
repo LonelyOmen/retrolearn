@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_api_usage: {
+        Row: {
+          api_model: string
+          api_provider: string
+          created_at: string
+          error_message: string | null
+          function_name: string
+          id: string
+          is_fallback: boolean
+          response_time_ms: number | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          api_model: string
+          api_provider: string
+          created_at?: string
+          error_message?: string | null
+          function_name: string
+          id?: string
+          is_fallback?: boolean
+          response_time_ms?: number | null
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          api_model?: string
+          api_provider?: string
+          created_at?: string
+          error_message?: string | null
+          function_name?: string
+          id?: string
+          is_fallback?: boolean
+          response_time_ms?: number | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       learning_progress: {
         Row: {
           articles: Json | null
