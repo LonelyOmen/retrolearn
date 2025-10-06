@@ -337,7 +337,7 @@ ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze th
             await logApiUsage(supabase, userId, 'process-notes', 'gemini', usedModel, isFallback, 'success', null, responseTime);
           } else {
             await logApiUsage(supabase, userId, 'process-notes', 'gemini', usedModel, isFallback, 'error', fb.data.error?.message || 'Unknown error', responseTime);
-            await supabase.from('notes').update({ processing_status: 'error' }).eq('id', noteId);
+            await supabase.from('notes').update({ processing_status: 'failed' }).eq('id', noteId);
             return new Response(
               JSON.stringify({ success: false, error: 'All AI providers failed' }),
               { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -406,7 +406,7 @@ ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze th
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
         await supabase
           .from('notes')
-          .update({ processing_status: 'error' })
+          .update({ processing_status: 'failed' })
           .eq('id', requestBody.noteId);
       }
     } catch (updateError) {

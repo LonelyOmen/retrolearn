@@ -29,6 +29,7 @@ export function NotesList({ onViewNote, notesType = 'regular' }: NotesListProps)
       case 'completed': return 'default';
       case 'processing': return 'secondary';
       case 'pending': return 'outline';
+      case 'failed':
       case 'error': return 'destructive';
       default: return 'outline';
     }
@@ -39,7 +40,8 @@ export function NotesList({ onViewNote, notesType = 'regular' }: NotesListProps)
       case 'completed': return 'Ready';
       case 'processing': return 'Processing';
       case 'pending': return 'Pending';
-      case 'error': return 'Error';
+      case 'failed':
+      case 'error': return 'Failed';
       default: return status;
     }
   };
