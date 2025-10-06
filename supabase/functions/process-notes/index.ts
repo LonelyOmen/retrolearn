@@ -7,6 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
 const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
 const geminiApiKeySecondary = Deno.env.get('GEMINI_API_KEY_SECONDARY');
 const tavilyApiKey = Deno.env.get('TAVILY_API_KEY');
@@ -20,7 +21,6 @@ interface ProcessingStep {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -36,10 +36,12 @@ serve(async (req) => {
       throw new Error('Note ID and either content or images are required');
     }
 
-    // Initialize Supabase client
+    if (!openaiApiKey && !geminiApiKey) {
+      throw new Error('No AI API keys configured');
+    }
+
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
-    // Update note status to processing
     await supabase
       .from('notes')
       .update({ processing_status: 'processing' })
@@ -53,43 +55,69 @@ serve(async (req) => {
       console.log('Enhancing with internet research...');
       
       try {
-        // Extract key topics for research using Gemini
-        const topicsResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key=${geminiApiKey}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: `Extract 2-3 key research topics from the provided notes. Return only the topics, one per line.\n\nNotes: ${content}`
-              }]
-            }],
-            generationConfig: {
-              temperature: 0.3,
-              maxOutputTokens: 150,
+        // Extract key topics - try GPT-5 first
+        let topics: string[] = [];
+        
+        if (openaiApiKey) {
+          try {
+            const topicsPrompt = `Extract 2-3 key research topics from the provided notes. Return them as a JSON array of strings.\n\nNotes: ${content}`;
+            const topicsResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${openaiApiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'gpt-5-2025-08-07',
+                messages: [
+                  { role: 'system', content: 'You are a research assistant.' },
+                  { role: 'user', content: topicsPrompt }
+                ],
+                max_completion_tokens: 150,
+                response_format: { type: "json_object" }
+              }),
+            });
+
+            if (topicsResponse.ok) {
+              const topicsData = await topicsResponse.json();
+              const parsed = JSON.parse(topicsData.choices[0].message.content);
+              topics = parsed.topics || Object.values(parsed)[0] || [];
             }
-          }),
-        });
-
-        const topicsData = await topicsResponse.json();
-        console.log('Topics response:', topicsData);
-        
-        if (!topicsData.candidates || !topicsData.candidates[0] || !topicsData.candidates[0].content) {
-          console.error('Invalid topics response format:', topicsData);
-          throw new Error('Failed to extract topics from Gemini response');
+          } catch (error) {
+            console.log('GPT-5 topic extraction failed:', error);
+          }
         }
-        
-        const topics = topicsData.candidates[0].content.parts[0].text.split('\n').filter((t: string) => t.trim());
 
-        // Research each topic
-        for (const topic of topics.slice(0, 2)) { // Limit to 2 topics
+        // Fallback to Gemini
+        if (topics.length === 0 && geminiApiKey) {
+          const topicsResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-002:generateContent?key=${geminiApiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{
+                  text: `Extract 2-3 key research topics from the provided notes. Return only the topics, one per line.\n\nNotes: ${content}`
+                }]
+              }],
+              generationConfig: {
+                temperature: 0.3,
+                maxOutputTokens: 150,
+              }
+            }),
+          });
+
+          const topicsData = await topicsResponse.json();
+          if (topicsData.candidates?.[0]?.content?.parts?.[0]?.text) {
+            topics = topicsData.candidates[0].content.parts[0].text.split('\n').filter((t: string) => t.trim());
+          }
+        }
+
+        // Research each topic with Tavily
+        for (const topic of topics.slice(0, 2)) {
           try {
             const tavilyResponse = await fetch('https://api.tavily.com/search', {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 api_key: tavilyApiKey,
                 query: topic.trim(),
@@ -113,7 +141,7 @@ serve(async (req) => {
       }
     }
 
-    // Step 2: Generate comprehensive study materials using Gemini
+    // Step 2: Generate comprehensive study materials
     console.log('Generating study materials...');
     
     const prompt = `You are an expert educator creating comprehensive study materials. Analyze the provided text notes and any images to create:
@@ -134,105 +162,138 @@ Make the content educational, engaging, and comprehensive. If images are provide
 
 ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze the images only.'}${additionalContext ? `\n\nAdditional Research Context:${additionalContext}` : ''}`;
 
-    // Prepare the content array for multimodal input
-    const contentParts: any[] = [{ text: prompt }];
-    
-    // Add images if provided
-    if (images && images.length > 0) {
-      console.log(`Including ${images.length} image(s) in processing...`);
-      images.forEach((image: any) => {
-        contentParts.push({
-          inline_data: {
-            data: image.data,
-            mime_type: image.mimeType
+    let studyData;
+    let rawResponseText;
+
+    // Try OpenAI GPT-5 first
+    if (openaiApiKey) {
+      try {
+        console.log('Trying GPT-5 for study materials');
+        const messages: any[] = [
+          { role: 'system', content: 'You are an expert educational assistant.' }
+        ];
+
+        // Handle images
+        if (images && images.length > 0) {
+          const contentParts: any[] = [{ type: 'text', text: prompt }];
+          
+          for (const img of images) {
+            contentParts.push({
+              type: 'image_url',
+              image_url: {
+                url: `data:${img.mimeType};base64,${img.data}`
+              }
+            });
           }
-        });
-      });
-    }
-    
-    // Helper to call Gemini with a specific key/model
-    const callGemini = async (apiKey: string, model: string) => {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: contentParts }],
-          generationConfig: { temperature: 0.7, maxOutputTokens: 4000 }
-        })
-      });
-      const data = await res.json();
-      return { res, data } as const;
-    };
-
-    // Try primary key with Pro model
-    let { res: studyResponse, data: studyData } = await callGemini(geminiApiKey!, 'gemini-1.5-pro-002');
-    console.log('Study response status:', studyResponse.status);
-    console.log('Study response data:', studyData);
-
-    if (!studyResponse.ok) {
-      const status = studyResponse.status;
-      const errMsg: string = studyData.error?.message || 'Unknown error';
-      console.error('Gemini API error:', { status, errMsg });
-
-      const quotaLike = status === 429 || /quota|insufficient|exceed|rate/i.test(errMsg);
-
-      // If quota on primary, try secondary key on Pro
-      if (quotaLike && geminiApiKeySecondary) {
-        console.log('Trying secondary key on gemini-1.5-pro-002');
-        const retry = await callGemini(geminiApiKeySecondary, 'gemini-1.5-pro-002');
-        studyResponse = retry.res; studyData = retry.data;
-        console.log('Secondary key status:', studyResponse.status);
-      }
-
-      // If still not OK, try Flash model (prefer secondary if quota-like and available)
-      if (!studyResponse.ok) {
-        const keyForFlash = quotaLike && geminiApiKeySecondary ? geminiApiKeySecondary : geminiApiKey!;
-        console.log('Attempting fallback to gemini-1.5-flash-002');
-        let fb = await callGemini(keyForFlash, 'gemini-1.5-flash-002');
-        if (!(fb.res.ok && fb.data.candidates && fb.data.candidates[0]?.content?.parts?.[0]?.text)) {
-          console.log('Flash fallback failed, trying gemini-2.0-flash-exp');
-          fb = await callGemini(keyForFlash, 'gemini-2.0-flash-exp');
-        }
-        if (fb.res.ok && fb.data.candidates && fb.data.candidates[0]?.content?.parts?.[0]?.text) {
-          studyData = fb.data;
+          
+          messages.push({ role: 'user', content: contentParts });
         } else {
-          try {
-            const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
-            await supabase.from('notes').update({ processing_status: 'error' }).eq('id', noteId);
-          } catch (_) {}
-          const fbMsg = fb.data?.error?.message || errMsg;
-          const finalStatus = fb.res.status || status;
-          return new Response(
-            JSON.stringify({ success: false, error: `Gemini error: ${fbMsg}`, provider_status: finalStatus, code: quotaLike ? 'GEMINI_QUOTA' : 'GEMINI_ERROR' }),
-            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          messages.push({ role: 'user', content: prompt });
         }
+
+        const gptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openaiApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-5-2025-08-07',
+            messages,
+            max_completion_tokens: 4000,
+            response_format: { type: "json_object" }
+          }),
+        });
+
+        if (gptResponse.ok) {
+          const gptData = await gptResponse.json();
+          rawResponseText = gptData.choices[0].message.content;
+          studyData = JSON.parse(rawResponseText);
+          console.log('GPT-5 study materials generated successfully');
+        } else {
+          const errorText = await gptResponse.text();
+          console.error('GPT-5 API error:', gptResponse.status, errorText);
+        }
+      } catch (error) {
+        console.error('GPT-5 error, falling back to Gemini:', error);
       }
     }
-    
-    if (!studyData.candidates || !studyData.candidates[0] || !studyData.candidates[0].content) {
-      console.error('Invalid study response format:', studyData);
-      throw new Error('Failed to generate study materials - invalid response format');
+
+    // Fallback to Gemini
+    if (!studyData && geminiApiKey) {
+      console.log('Using Gemini for study materials');
+      
+      const contentParts: any[] = [{ text: prompt }];
+      
+      if (images && images.length > 0) {
+        console.log(`Including ${images.length} image(s)`);
+        images.forEach((image: any) => {
+          contentParts.push({
+            inline_data: {
+              data: image.data,
+              mime_type: image.mimeType
+            }
+          });
+        });
+      }
+      
+      const callGemini = async (apiKey: string, model: string) => {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: contentParts }],
+            generationConfig: { temperature: 0.7, maxOutputTokens: 4000 }
+          })
+        });
+        const data = await res.json();
+        return { res, data } as const;
+      };
+
+      let { res: studyResponse, data: geminiData } = await callGemini(geminiApiKey, 'gemini-1.5-pro-002');
+
+      if (!studyResponse.ok) {
+        const quotaLike = studyResponse.status === 429 || /quota|insufficient|exceed|rate/i.test(geminiData.error?.message || '');
+
+        if (quotaLike && geminiApiKeySecondary) {
+          console.log('Trying secondary Gemini key');
+          const retry = await callGemini(geminiApiKeySecondary, 'gemini-1.5-pro-002');
+          studyResponse = retry.res; geminiData = retry.data;
+        }
+
+        if (!studyResponse.ok) {
+          const keyForFlash = quotaLike && geminiApiKeySecondary ? geminiApiKeySecondary : geminiApiKey;
+          console.log('Falling back to Flash model');
+          const fb = await callGemini(keyForFlash, 'gemini-1.5-flash-002');
+          if (fb.res.ok && fb.data.candidates?.[0]?.content?.parts?.[0]?.text) {
+            geminiData = fb.data;
+          } else {
+            await supabase.from('notes').update({ processing_status: 'error' }).eq('id', noteId);
+            return new Response(
+              JSON.stringify({ success: false, error: 'All AI providers failed' }),
+              { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        }
+      }
+      
+      if (geminiData.candidates?.[0]?.content?.parts?.[0]?.text) {
+        rawResponseText = geminiData.candidates[0].content.parts[0].text;
+        const jsonMatch = rawResponseText.match(/\{[\s\S]*\}/);
+        const jsonText = jsonMatch ? jsonMatch[0] : rawResponseText;
+        studyData = JSON.parse(jsonText);
+      }
     }
 
-    let studyMaterials;
-    try {
-      const responseText = studyData.candidates[0].content.parts[0].text;
-      // Clean up response text to extract JSON
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      const jsonText = jsonMatch ? jsonMatch[0] : responseText;
-      studyMaterials = JSON.parse(jsonText);
-    } catch (parseError) {
-      console.error('Failed to parse JSON response:', parseError);
-      console.log('Raw response text:', studyData.candidates[0].content.parts[0].text);
-      throw new Error('Failed to parse study materials from response');
+    if (!studyData) {
+      throw new Error('No AI response received from any provider');
     }
     
     console.log('Generated study materials:', {
-      summaryLength: studyMaterials.summary?.length,
-      keyPointsCount: studyMaterials.keyPoints?.length,
-      flashcardsCount: studyMaterials.flashcards?.length,
-      qaCount: studyMaterials.qa?.length
+      summaryLength: studyData.summary?.length,
+      keyPointsCount: studyData.keyPoints?.length,
+      flashcardsCount: studyData.flashcards?.length,
+      qaCount: studyData.qa?.length
     });
 
     // Step 3: Update note with generated content
@@ -240,10 +301,10 @@ ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze th
       .from('notes')
       .update({
         processing_status: 'completed',
-        summary: studyMaterials.summary,
-        key_points: studyMaterials.keyPoints,
-        generated_flashcards: studyMaterials.flashcards,
-        generated_qa: studyMaterials.qa,
+        summary: studyData.summary,
+        key_points: studyData.keyPoints,
+        generated_flashcards: studyData.flashcards,
+        generated_qa: studyData.qa,
         updated_at: new Date().toISOString()
       })
       .eq('id', noteId)
@@ -267,7 +328,6 @@ ${content ? `Original Notes:\n${content}` : 'No text notes provided - analyze th
   } catch (error) {
     console.error('Error in process-notes function:', error);
     
-    // Try to update note status to error if we have the noteId
     try {
       if (requestBody?.noteId && supabaseUrl && supabaseServiceKey) {
         const supabase = createClient(supabaseUrl, supabaseServiceKey);

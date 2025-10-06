@@ -13,12 +13,13 @@ serve(async (req) => {
   }
 
   try {
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!geminiApiKey) {
-      throw new Error('Gemini API key not configured');
+    if (!openaiApiKey && !geminiApiKey) {
+      throw new Error('No AI API keys configured');
     }
 
     if (!supabaseUrl || !supabaseServiceKey) {
@@ -77,56 +78,100 @@ serve(async (req) => {
             
             Create a quiz about: ${topic}`;
 
-    const callGemini = async (apiKey: string, model: string) => {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }]}],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 4000,
-            responseMimeType: 'application/json'
-          }
-        })
-      });
-      const data = await res.json();
-      return { res, data } as const;
-    };
+    let content;
 
-    // Try latest fast model first, then fallbacks and secondary key if quota
-    let { res: aiRes, data: aiData } = await callGemini(geminiApiKey!, 'gemini-2.5-flash');
-    if (!aiRes.ok) {
-      const status = aiRes.status;
-      const errMsg: string = aiData?.error?.message || 'Unknown error';
-      const quotaLike = status === 429 || /quota|exceed|rate|insufficient/i.test(errMsg);
+    // Try OpenAI GPT-5 first
+    if (openaiApiKey) {
+      try {
+        console.log('Trying GPT-5 for quiz generation');
+        const gptResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openaiApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-5-2025-08-07',
+            messages: [
+              { role: 'system', content: 'You are a quiz generator that creates educational quizzes.' },
+              { role: 'user', content: prompt }
+            ],
+            max_completion_tokens: 4000,
+            response_format: { type: "json_object" }
+          }),
+        });
 
-      // If quota-like or 5xx, try secondary key on the same model
-      if ((quotaLike || status >= 500) && geminiApiKeySecondary) {
-        console.log('Trying secondary key on gemini-2.5-flash');
-        const retry = await callGemini(geminiApiKeySecondary, 'gemini-2.5-flash');
-        aiRes = retry.res; aiData = retry.data;
-      }
-
-      // If still not OK, try 1.5-flash then 1.5-flash-8b with whichever key available
-      if (!aiRes.ok) {
-        const keyForFlash = geminiApiKeySecondary ?? geminiApiKey!;
-        console.log('Falling back to gemini-1.5-flash');
-        let fb = await callGemini(keyForFlash, 'gemini-1.5-flash');
-        if (!(fb.res.ok && fb.data?.candidates?.[0]?.content?.parts?.[0]?.text)) {
-          console.log('1.5-flash failed, trying gemini-1.5-flash-8b');
-          fb = await callGemini(keyForFlash, 'gemini-1.5-flash-8b');
+        if (gptResponse.ok) {
+          const gptData = await gptResponse.json();
+          content = gptData.choices[0].message.content;
+          console.log('GPT-5 quiz generated successfully');
+        } else {
+          const errorText = await gptResponse.text();
+          console.error('GPT-5 API error:', gptResponse.status, errorText);
+          throw new Error(`GPT-5 failed: ${gptResponse.status}`);
         }
-        aiRes = fb.res; aiData = fb.data;
-      }
-
-      if (!aiRes.ok) {
-        console.error('Gemini API error for quiz generation:', { status: aiRes.status, body: aiData });
-        throw new Error(`Gemini API error: ${aiRes.status}`);
+      } catch (error) {
+        console.error('GPT-5 error, falling back to Gemini:', error);
       }
     }
 
-    const content = aiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+    // Fallback to Gemini if GPT-5 failed or not available
+    if (!content && geminiApiKey) {
+      const callGemini = async (apiKey: string, model: string) => {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }]}],
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 4000,
+              responseMimeType: 'application/json'
+            }
+          })
+        });
+        const data = await res.json();
+        return { res, data } as const;
+      };
+
+      // Try latest fast model first, then fallbacks and secondary key if quota
+      let { res: aiRes, data: aiData } = await callGemini(geminiApiKey, 'gemini-2.5-flash');
+      if (!aiRes.ok) {
+        const status = aiRes.status;
+        const errMsg: string = aiData?.error?.message || 'Unknown error';
+        const quotaLike = status === 429 || /quota|exceed|rate|insufficient/i.test(errMsg);
+
+        // If quota-like or 5xx, try secondary key on the same model
+        if ((quotaLike || status >= 500) && geminiApiKeySecondary) {
+          console.log('Trying secondary key on gemini-2.5-flash');
+          const retry = await callGemini(geminiApiKeySecondary, 'gemini-2.5-flash');
+          aiRes = retry.res; aiData = retry.data;
+        }
+
+        // If still not OK, try 1.5-flash then 1.5-flash-8b with whichever key available
+        if (!aiRes.ok) {
+          const keyForFlash = geminiApiKeySecondary ?? geminiApiKey;
+          console.log('Falling back to gemini-1.5-flash');
+          let fb = await callGemini(keyForFlash, 'gemini-1.5-flash');
+          if (!(fb.res.ok && fb.data?.candidates?.[0]?.content?.parts?.[0]?.text)) {
+            console.log('1.5-flash failed, trying gemini-1.5-flash-8b');
+            fb = await callGemini(keyForFlash, 'gemini-1.5-flash-8b');
+          }
+          aiRes = fb.res; aiData = fb.data;
+        }
+
+        if (!aiRes.ok) {
+          console.error('Gemini API error for quiz generation:', { status: aiRes.status, body: aiData });
+          throw new Error(`Gemini API error: ${aiRes.status}`);
+        }
+      }
+
+      content = aiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+    }
+
+    if (!content) {
+      throw new Error('No AI response received from any provider');
+    }
     
     console.log('Gemini response:', content);
 
