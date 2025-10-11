@@ -66,11 +66,21 @@ serve(async (req) => {
       throw new Error(`Cloudflare API error: ${response.status} ${errorText}`);
     }
 
-    const result = await response.json();
-    console.log('Transcription result:', result);
+    const cf = await response.json();
+    console.log('Transcription result:', cf);
+
+    const text = cf?.result?.text ?? cf?.text ?? '';
+
+    if (!text) {
+      console.error('No text field found in Cloudflare response');
+      return new Response(
+        JSON.stringify({ error: 'No transcription returned', isQuotaError: false }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     return new Response(
-      JSON.stringify({ text: result.text }),
+      JSON.stringify({ text }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }

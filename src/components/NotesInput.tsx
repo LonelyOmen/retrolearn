@@ -189,6 +189,7 @@ export const NotesInput = ({
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
+      try { mediaRecorderRef.current.requestData(); } catch {}
       mediaRecorderRef.current.stop();
       setIsRecording(false);
     }
@@ -231,10 +232,17 @@ export const NotesInput = ({
       }
 
       if (data.text) {
-        setNotes(prev => prev ? `${prev}\n\n${data.text}` : data.text);
+        setNotes(prev => {
+          const combined = prev ? `${prev}\n\n${data.text}` : data.text;
+          // Auto-run the normal transform pipeline
+          if (!isProcessing) {
+            onProcessNotes(combined, images.map(({ data, mimeType }) => ({ data, mimeType })));
+          }
+          return combined;
+        });
         toast({
           title: "Transcription complete",
-          description: "Your voice has been converted to text",
+          description: "Inserted into notes and starting transform",
         });
       }
     } catch (error) {
