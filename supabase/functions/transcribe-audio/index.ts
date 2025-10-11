@@ -22,8 +22,13 @@ serve(async (req) => {
     const audioBlob = await req.arrayBuffer();
     console.log('Received audio blob of size:', audioBlob.byteLength);
 
+    if (audioBlob.byteLength === 0) {
+      throw new Error('Empty audio file received');
+    }
+
     // Convert to Uint8Array as required by Cloudflare Workers AI
     const audioArray = [...new Uint8Array(audioBlob)];
+    console.log('Audio array length:', audioArray.length);
 
     // Call Cloudflare Workers AI Whisper model
     const response = await fetch(

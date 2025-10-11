@@ -137,7 +137,9 @@ export const NotesInput = ({
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm',
+      });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -149,13 +151,26 @@ export const NotesInput = ({
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        console.log('Audio blob size:', audioBlob.size);
+        
+        if (audioBlob.size === 0) {
+          toast({
+            title: "Recording failed",
+            description: "No audio was captured. Please try again.",
+            variant: "destructive",
+          });
+          stream.getTracks().forEach(track => track.stop());
+          return;
+        }
+        
         await transcribeAudio(audioBlob);
         
         // Stop all tracks to release the microphone
         stream.getTracks().forEach(track => track.stop());
       };
 
-      mediaRecorder.start();
+      // Start recording with timeslice to ensure data is captured
+      mediaRecorder.start(100);
       setIsRecording(true);
       
       toast({
@@ -183,14 +198,28 @@ export const NotesInput = ({
     setIsTranscribing(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-        body: audioBlob,
-        headers: {
-          'Content-Type': 'audio/webm',
-        },
-      });
+      // Use fetch directly to send raw binary data
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcribe-audio`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Content-Type': 'audio/webm',
+          },
+          body: audioBlob,
+        }
+      );
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Transcription failed');
+      }
+
+      const data = await response.json();
 
       if (data.isQuotaError) {
         toast({
