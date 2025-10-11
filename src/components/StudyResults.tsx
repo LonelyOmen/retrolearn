@@ -72,7 +72,9 @@ const mockQA = [
 ];
 
 // Helper function to parse markdown bold syntax (**text**) and render as bold
-const parseMarkdownBold = (text: string) => {
+const parseMarkdownBold = (text: string | undefined | null) => {
+  if (!text) return '';
+  
   const parts = text.split(/(\*\*.*?\*\*)/g);
   
   return parts.map((part, index) => {

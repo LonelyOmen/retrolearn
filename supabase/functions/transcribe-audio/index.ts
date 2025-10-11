@@ -67,9 +67,8 @@ serve(async (req) => {
     }
 
     const cf = await response.json();
-    console.log('Transcription result:', cf);
-
     const text = cf?.result?.text ?? cf?.text ?? '';
+    console.log('Transcribed text:', text);
 
     if (!text) {
       console.error('No text field found in Cloudflare response');
