@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sparkles, FileText, Mic, Image as ImageIcon, Globe } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -25,6 +26,8 @@ export const NotesInput = ({
   const [images, setImages] = useState<Array<{data: string, mimeType: string, name: string}>>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [showTranscriptDialog, setShowTranscriptDialog] = useState(false);
+  const [transcribedText, setTranscribedText] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -134,6 +137,24 @@ export const NotesInput = ({
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleContinueWithTranscription = () => {
+    const combined = notes ? `${notes}\n\n${transcribedText}` : transcribedText;
+    setNotes(combined);
+    setShowTranscriptDialog(false);
+    
+    // Process the notes with transcription
+    if (!isProcessing) {
+      onProcessNotes(combined, images.map(({ data, mimeType }) => ({ data, mimeType })));
+    }
+  };
+
+  const handleReRecord = () => {
+    setShowTranscriptDialog(false);
+    setTranscribedText("");
+    // Start recording again
+    startRecording();
+  };
+
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -232,17 +253,11 @@ export const NotesInput = ({
       }
 
       if (data.text) {
-        setNotes(prev => {
-          const combined = prev ? `${prev}\n\n${data.text}` : data.text;
-          // Auto-run the normal transform pipeline
-          if (!isProcessing) {
-            onProcessNotes(combined, images.map(({ data, mimeType }) => ({ data, mimeType })));
-          }
-          return combined;
-        });
+        setTranscribedText(data.text);
+        setShowTranscriptDialog(true);
         toast({
           title: "Transcription complete",
-          description: "Inserted into notes and starting transform",
+          description: "Review and edit your transcription",
         });
       }
     } catch (error) {
@@ -258,8 +273,48 @@ export const NotesInput = ({
   };
 
   return (
-    <Card className="p-6 bg-card border-2 border-primary scanlines">
-      <div className="space-y-4">
+    <>
+      <Dialog open={showTranscriptDialog} onOpenChange={setShowTranscriptDialog}>
+        <DialogContent className="sm:max-w-[600px] bg-card border-2 border-primary">
+          <DialogHeader>
+            <DialogTitle className="font-retro text-primary glow-text">TRANSCRIBED TEXT</DialogTitle>
+            <DialogDescription className="font-retro text-muted-foreground">
+              Review and edit your transcription before processing
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              value={transcribedText}
+              onChange={(e) => setTranscribedText(e.target.value)}
+              className="min-h-[200px] bg-muted border-2 border-secondary text-foreground font-retro resize-none focus:border-primary focus:shadow-blue transition-all"
+              placeholder="Your transcribed text will appear here..."
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="terminal"
+              onClick={handleReRecord}
+              disabled={isProcessing}
+              className="flex-1"
+            >
+              <Mic className="w-4 h-4 mr-2" />
+              RE-RECORD
+            </Button>
+            <Button
+              variant="wizard"
+              onClick={handleContinueWithTranscription}
+              disabled={isProcessing || !transcribedText.trim()}
+              className="flex-1"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              CONTINUE
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Card className="p-6 bg-card border-2 border-primary scanlines">
+        <div className="space-y-4">
         <div className="flex items-center gap-3 mb-4">
           <FileText className="w-6 h-6 text-primary" />
           <h2 className="text-xl font-retro glow-text">INPUT YOUR MESSY NOTES</h2>
@@ -377,5 +432,6 @@ export const NotesInput = ({
         />
       </div>
     </Card>
+    </>
   );
 };
