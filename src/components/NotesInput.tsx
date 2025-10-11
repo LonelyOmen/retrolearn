@@ -23,7 +23,11 @@ export const NotesInput = ({
 }: NotesInputProps) => {
   const [notes, setNotes] = useState("");
   const [images, setImages] = useState<Array<{data: string, mimeType: string, name: string}>>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const { toast } = useToast();
 
   const handleSubmit = () => {
@@ -130,6 +134,92 @@ export const NotesInput = ({
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        await transcribeAudio(audioBlob);
+        
+        // Stop all tracks to release the microphone
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      
+      toast({
+        title: "Recording started",
+        description: "Speak clearly into your microphone",
+      });
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      toast({
+        title: "Microphone access denied",
+        description: "Please allow microphone access to use voice input",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const transcribeAudio = async (audioBlob: Blob) => {
+    setIsTranscribing(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+        body: audioBlob,
+        headers: {
+          'Content-Type': 'audio/webm',
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.isQuotaError) {
+        toast({
+          title: "Daily limit reached",
+          description: data.error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data.text) {
+        setNotes(prev => prev ? `${prev}\n\n${data.text}` : data.text);
+        toast({
+          title: "Transcription complete",
+          description: "Your voice has been converted to text",
+        });
+      }
+    } catch (error) {
+      console.error('Error transcribing audio:', error);
+      toast({
+        title: "Transcription failed",
+        description: "Failed to transcribe audio. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
   return (
     <Card className="p-6 bg-card border-2 border-primary scanlines">
       <div className="space-y-4">
@@ -143,9 +233,15 @@ export const NotesInput = ({
             <FileText className="w-4 h-4" />
             TEXT INPUT
           </Button>
-          <Button variant="terminal" size="sm" disabled className="text-xs opacity-50">
-            <Mic className="w-4 h-4" />
-            VOICE (SOON)
+          <Button 
+            variant={isRecording ? "destructive" : "terminal"} 
+            size="sm" 
+            onClick={isRecording ? stopRecording : startRecording}
+            disabled={isProcessing || isTranscribing}
+            className="text-xs"
+          >
+            <Mic className={`w-4 h-4 ${isRecording ? 'animate-pulse' : ''}`} />
+            {isRecording ? 'STOP' : isTranscribing ? 'TRANSCRIBING...' : 'VOICE'}
           </Button>
           <Button 
             variant="terminal" 
